@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""资产管理中枢 页面构建：把「空数据骨架」注入模板，产出单文件浏览器版。
+"""资产管理中枢 v1.0.0 页面构建：把「空数据骨架」注入模板，产出单文件浏览器版。
 
-输入：与本脚本同级的上一级目录（`源码/`）里的 `资产管理中枢_模板.html`；
-输出：`源码/资产管理中枢_浏览器版.html`，与 APK 的 `assets/index.html` 同哈希。
+输入：与本脚本同级的上一级目录（`源码/`）里的 `资产管理中枢_模板_v1.0.0.html`；
+输出：`源码/资产管理中枢_浏览器版_v1.0.0.html`，与 APK 的 `assets/index.html` 同哈希。
 本脚本只做占位符替换 + 静态契约断言，不改任何金额函数、统计口径与数据结构；
 出厂为全 0 空态（无内置流水与资产）。"""
 import json
@@ -13,10 +13,10 @@ import re
 
 HERE = pathlib.Path(__file__).resolve().parent
 SRC_DIR = HERE.parent                                   # 归档/工作树的「源码/」
-TPL = SRC_DIR / '资产管理中枢_模板.html'
+TPL = SRC_DIR / '资产管理中枢_模板_v1.0.0.html'
 if not TPL.exists():
     raise SystemExit('缺少模板：%s' % TPL)
-OUT = SRC_DIR / '资产管理中枢_浏览器版.html'
+OUT = SRC_DIR / '资产管理中枢_浏览器版_v1.0.0.html'
 # 回归用 fixture（可选）：由环境变量指定本地脱敏备份 JSON；不给就跳过，测试脚本自备
 FIXTURE = pathlib.Path(os.environ['AMHUB_FIXTURE']) if os.environ.get('AMHUB_FIXTURE') else None
 # 凭据清单不入库：构建机本地 密钥/leak_guard.txt，每行一个串

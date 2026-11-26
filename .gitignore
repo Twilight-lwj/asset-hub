@@ -3,11 +3,10 @@
 *.keystore
 密钥/
 
-# 构建产物（不入库；按 打包说明.md 本地构建，成品统一落在 发布版/）
-发布版/
+# 构建产物（不入库；按 打包说明.md 本地构建）
 *.apk
 *.AppImage
-*_浏览器版.html
+*_浏览器版_*.html
 dist/
 build/
 # PyInstaller 单文件可执行（中间物）

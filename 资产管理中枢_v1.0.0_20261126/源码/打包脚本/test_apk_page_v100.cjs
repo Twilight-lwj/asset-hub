@@ -5,7 +5,7 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const APK = path.resolve(__dirname, '..', '..', '发布版', '资产管理中枢-发布版1.0.0.apk');
+const APK = path.resolve(__dirname, '..', '..', '资产管理中枢_Android安装包_v1.0.0.apk');
 function apkPage() {
   const buf = fs.readFileSync(APK);
   let eocd = -1;
@@ -26,7 +26,7 @@ function apkPage() {
     if (name === 'assets/index.html') {
       const raw = buf.slice(start, start + csize);
       const data = method === 0 ? raw : zlib.inflateRawSync(raw);
-      const out = '/tmp/ledger_apk_page.html';
+      const out = '/tmp/ledger_apk_page_v100.html';
       fs.writeFileSync(out, data);
       return 'file://' + out;
     }

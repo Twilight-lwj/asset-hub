@@ -28,7 +28,7 @@ def _find_root():
 ROOT = _find_root()
 sys.path.insert(0, HERE)
 from axml import Axml  # noqa: E402
-from patch_native import patch_dex, patch_arsc, verify as verify_native  # noqa: E402
+from patch_native_v100 import patch_dex, patch_arsc, verify as verify_native  # noqa: E402
 
 TOOLS = os.environ.get('ANDROID_TOOLS', '')
 if not TOOLS:
@@ -55,7 +55,7 @@ PKG = 'com.amhub.app'
 OLD_PKG = 'com.pnlboard.app'
 VERSION_NAME = '1.0.0'
 VERSION_CODE = 1
-KS = os.path.join(ROOT, '密钥', LABEL + '_Android签名密钥.jks')
+KS = os.path.join(ROOT, '密钥', LABEL + '_Android签名密钥_v' + VERSION_NAME + '.jks')
 _PASS_FILE = os.path.join(ROOT, '密钥', 'keystore.pass')
 KS_PASS = os.environ.get('AMHUB_KS_PASS', '')
 if not KS_PASS and os.path.exists(_PASS_FILE):
@@ -67,9 +67,9 @@ KS_ALIAS = os.environ.get('AMHUB_KS_ALIAS', 'ledger')
 BASE_CANDIDATES = [os.path.join(ROOT, 'base.apk'),
                    os.path.join(ROOT, '源码', '打包脚本', 'base.apk')]
 BASE = next((p for p in BASE_CANDIDATES if os.path.exists(p)), BASE_CANDIDATES[0])
-PAGE = os.path.join(ROOT, '源码', LABEL + '_浏览器版.html')
-DIST = os.environ.get('DIST', os.path.join(ROOT, '发布版'))   # 成品统一落在 发布版/，.gitignore 已排除
-OUT = os.path.join(DIST, LABEL + '-发布版' + VERSION_NAME + '.apk')
+PAGE = os.path.join(ROOT, '源码', LABEL + '_浏览器版_v' + VERSION_NAME + '.html')
+DIST = os.environ.get('DIST', ROOT)   # 默认落在版本目录（与成品同目录），.gitignore 已排除 *.apk
+OUT = os.path.join(DIST, LABEL + '_Android安装包_v' + VERSION_NAME + '.apk')
 DROP = ('.SF', '.RSA', '.DSA', '.MF', '.EC')
 # v1.2.5 沿用：adaptive-icon 的 5 张前景 PNG（黑底白 ¥；背景色在 arsc 里已是纯黑，不改）
 ICON_DIR = os.path.join(ROOT, '源码', '图标')

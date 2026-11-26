@@ -15,15 +15,15 @@ const crypto = require('crypto');
 function findRoot(){
   let d = __dirname;
   for (let i = 0; i < 4; i++) {
-    if (fs.existsSync(path.join(d, '发布版', '资产管理中枢-发布版1.0.0.apk'))
-        || fs.existsSync(path.join(d, '源码', '资产管理中枢_浏览器版.html'))) return d;
+    if (fs.existsSync(path.join(d, '资产管理中枢_Android安装包_v1.0.0.apk'))
+        || fs.existsSync(path.join(d, '源码', '资产管理中枢_浏览器版_v1.0.0.html'))) return d;
     d = path.dirname(d);
   }
   return path.resolve(__dirname, '..', '..');
 }
 const ROOT = findRoot();
-const PAGE = path.join(ROOT, '源码', '资产管理中枢_浏览器版.html');
-const APK = path.join(ROOT, '发布版', '资产管理中枢-发布版1.0.0.apk');
+const PAGE = path.join(ROOT, '源码', '资产管理中枢_浏览器版_v1.0.0.html');
+const APK = path.join(ROOT, '资产管理中枢_Android安装包_v1.0.0.apk');
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
   if (cond) { pass++; console.log('[PASS] ' + name); }
@@ -220,7 +220,7 @@ ok('v1.1.7 选中后写回 select.value 并派发 change（aKind 联动不失效
 ok('v1.1.7 禁用下拉被拦截、Escape 优先关闭选择器且不误关底层记账页',
    html.includes('if(!sel || sel.disabled) return;') &&
    html.includes('if(pickerOpen()){ if(e.key === \'Escape\') closePicker(); return; }'));
-const iconScript = fs.readFileSync(path.join(ROOT, '源码', '图标', 'make_icon.py'), 'utf8');
+const iconScript = fs.readFileSync(path.join(ROOT, '源码', '图标', 'make_icon_v100.py'), 'utf8');
 ok('v1.1.7 图标 ¥ 已缩小：生成脚本目标 bbox 46%，断言区间 0.40–0.52',
    iconScript.includes('MASTER * 0.46') && iconScript.includes('0.40 <= frac <= 0.52') &&
    !iconScript.includes('MASTER * 0.62'));

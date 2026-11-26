@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const PAGE = path.resolve(__dirname, '..', '资产管理中枢_浏览器版.html');
+const PAGE = path.resolve(__dirname, '..', '资产管理中枢_浏览器版_v1.0.0.html');
 const HTML = fs.readFileSync(PAGE, 'utf8');
 
 let pass = 0, fail = 0;
