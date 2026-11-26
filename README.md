@@ -25,7 +25,7 @@
 | Android | 构建得到 `发布版/资产管理中枢-发布版1.0.0.apk` | 不入库。包名 `com.amhub.app`，versionCode 1，基于通用 WebView 壳，含坚果云 WebDAV 原生桥，`classes.dex` 与底座逐字节一致 |
 | Linux | 构建得到 `发布版/资产管理中枢-发布版1.0.0.AppImage` | 不入库。type2 AppImage，`--version` 输出 `amhub 1.0.0` |
 
-页面源码本体是 `源码/资产管理中枢_模板.html`，含 `__LEDGER_DATA__` 占位符；浏览器版由 `build_amhub.py` 注入空态数据生成。
+页面源码本体是 `源码/资产管理中枢_模板.html`，含 `__LEDGER_DATA__` 占位符；浏览器版由 `源码/打包脚本/build_amhub.py` 注入空态数据生成。
 
 ## 快速开始
 
