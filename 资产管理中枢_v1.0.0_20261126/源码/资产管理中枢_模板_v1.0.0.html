@@ -1,0 +1,2462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6fa">
+<meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+<title>资产管理中枢 v1.0.0</title>
+<style>
+:root{
+  --ink:#12161d;                         /* v1.4.5：参考同类看板应用 light --text（白天文字/前景） */
+  --paper:#f4f6fa;                       /* v1.4.5：参考同类看板应用 light --bg（白天页面底） */
+  --edge:#c9d6e8;                        /* v1.4.5：新增 --edge，参考同类看板应用 light --edge，边框色与文字色解耦 */
+  --muted:#66707d;
+  /* v1.3.3：唯一一处彩色 —— 流水条「未填写完整账户」的警示色（危险操作 #a00 同一支）。
+     其余选中态 / 按压态仍是纯黑白，不引入第二套视觉。 */
+  --warn:#a00;
+  --bd:1px;                              /* 全站边框粗细：对齐同类看板应用 1px */
+  --line:var(--bd) solid var(--edge);
+  --fs:clamp(12px,3.4vw,15px);           /* 全站统一字号（含时间） */
+  --flow-gap:3px;                        /* 流水条内容间距：3px */
+  /* v1.2.6：内容区（账单页日历/日期条/流水、资产页汇总卡片与账户列表）独立字号，
+     默认＝--fs（手机端零变化）；平板/桌面断点内降到 --fs 的 88%（用户要求
+     「账单页与资产页字体改小一点」，顶栏五项功能与记账弹层保持原字号）。 */
+  --fs-c:var(--fs);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0}
+/* v1.1.6 起：顶部「备份」＝应用内固定备份区 + 坚果云双写（零弹窗），「恢复」＝来源选择框；
+   「明暗」切换白天/黑夜主题，系统栏颜色随主题同步。
+   v1.1.8：白天＝黑边纯白底(#000/#fff)，夜晚＝白边纯黑底(#fff/#000)，
+   「明暗」按钮 / 日历选中日期框 / dock 选中态三处反色块与灰底按压态全部归一。
+   v1.1.4 三层修复仍在：不透明明确色 + 运行时关对比度强制 + 底部取色区无黑边
+   v1.1.9：dock 选中态的 3px 指示条不再贴 2px 下边框（真机 15 物理 px vs 6 px 粗黑边），
+   改为悬浮短条；dock 去掉灰晕投影、顶边上方加 6px 主题纯色缓冲带，消除「黑边重叠」观感
+   v1.2.0：把 v1.1.8 刻意保留的三处反色实心块（记账页类型按钮 / 选项弹层选中行 /
+   设置页开关）并入同一套「主题底色 + 主题色字 + 加粗」；选项行按压灰底一并归一
+   v1.2.1：平板适配（OPPO Pad mini 竖/横屏实证）——>=560px 时按同一比例放大字号与
+   容器宽度，硬编码 px 尺寸改 em 等比跟随；<=559px 手机端零改动
+   v1.2.5：手机端上移（body 顶 14→4px，资产页免滚动即见「总资产」；底 88→112px
+   兜底）；平板 dock 全宽（max-width:none），顶边黑线随全屏拉通 */
+/* v1.2.8：整页改成「固定高度外框 + 内部流式滚动」—— 账单页上方的日历与日期条
+   不再随内容一起滚走，下方流水条在自己的区域里滚动（用户需求：11月6日那一栏起
+   改为下方流水滚动、上方不动）；页面本身不再滚动，资产页竖屏自然也就没有滚动（需求 2）。
+   v1.2.9：去掉面板下方那行「资产管理中枢 v1.x.x」页脚（用户反馈它占的高度太多）。
+   .app 里只剩「顶栏 / 面板」两段，面板是 flex:1 1 auto，会**自动吃掉**页脚让出的
+   约 25px（页脚行高 ≈18px + margin-top 7px），表现为面板下边框整体下移 25px；
+   body 底 56px / .app 底 7px 一律不动 —— 面板底边离 dock 顶仍是原来那 16px 呼吸，
+   没有为了多长一点去贴边。 */
+/* v1.3.7：新增【总览】页并设为开屏页；底部 dock 由「账单 / 记账 / 资产」三项改为
+   「总览 / 账单 / 资产 / 记账」四项，四类所在矩形框等宽等高（用户 2026-11-12 要求）。
+   做法：
+     1) .bottombar>button 一律 flex:1 1 0（等分剩余宽度），四块 border-box 因此严格等宽；
+        四块各自保留完整四周框线、四角全圆，用 gap:6px 彼此分开 —— 每个按钮是独立边框卡片
+        （延续平板断点已有的独立卡片范式）。相邻边框不再折叠共享，拆分为各自独立的一条。
+        .tab / .plus 的 92px / 66px 一并撤销，四块 flex:1 1 0 仍严格等宽。
+     2) 平板断点（>=560px 的左侧竖排 dock）里按钮的主轴变成纵向，
+        flex:1 1 0 会把 flex-basis 0 套到高度上（按钮被压扁），且负左边距会横向错位，
+        故该块内显式改回 flex:0 0 auto + margin-left:0，保持「各占满栏宽、高度 2.4em」。
+     3) 总览页不做新的骨架：面板里「日历 / 日期条 / 资产卡片」全部 hidden，
+        内容整块渲进 .flow（页面唯一的滚动容器）—— 资产 / 本月两组卡片沿用
+        .asset-summary 网格，分类排行与最近流水沿用 .asset-row / .flow-row，
+        昼夜两套主题、等宽表格、点击编辑全部自动继承。
+        【v1.3.8 起两榜已删除，改为下方一个独立的月份金额格；本段仅作 v1.3.7 沿革保留】 */
+/* v1.3.8（用户 2026-11-12 四条反馈）：
+     1) 末条流水恢复下边框；.flow-list 底部留 8px，滚到底时末条底边不与 .panel 底边
+        贴成 4px 大黑边。
+     2) 总览删掉「分类支出」「最近流水」两榜。
+     3) 总览新增**独立一个带框的月份金额格**：结余/收入/支出三切换键 + 12 个月格
+        （1~5 / 6~10 / 11~12）+ 占 3 列的本年格；每格上月份数字、下金额。
+        用户明确：不要热力深浅、只显示金额、月份格纯展示不可点。
+        取数全部复用既有的月度 KPI 取数路径，本月三格与 12 个月格同源，
+        **零新增金额公式**。
+     4) .kpi 缩到 .86em，修移动端「支出/收入/结余」显示不全。 */
+html{background:var(--paper);color-scheme:light;height:100%}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:"Noto Serif CJK SC","Source Han Serif SC","Songti SC","SimSun",serif;
+  font-size:var(--fs);
+  /* v1.2.2：顶 14→4px；v1.2.5：顶 4→0px 再整体上移（对齐用户图二＝真机再上移 16 物理px@3x＝5.33 CSS px）。
+     v1.2.8：底 112→56px（页面不再整体滚动，只需给底部 dock 的 47px 让位 + 9px 间隙）；
+     v1.2.10：dock 底部内距 4→2px（dock 高 47→45px），让位同步 56→54px —— 仍是「dock 高 + 9px 间隙」，
+     面板底边离 dock 顶保持 16px 呼吸，只是整块往下挪了 2px；
+     左右 10→4px —— 整体向左右各外扩 6px，加上 .app 的 6px 内距，离屏幕边仍留 10px，
+     既变宽又不贴边；左右数值同源对称，与是否显示滑动条无关（滑动条已隐藏）。
+     v1.3.0：面板↔dock 呼吸位 16→8px（用户要求「间距缩小一半，面板往下」）。
+     dock 与 .app 的底内距一个字不动，只把 body 让位 54→46px —— 内容区因此高 8px，
+     面板（flex:1 1 auto）顺势下延 8px；呼吸位 = 46（让位）+ 7（.app 底内距）− 45（dock 盒高）= 8。 */
+  height:100vh;height:100dvh;overflow:hidden;
+  padding:0 4px calc(46px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;
+  -webkit-text-size-adjust:100%;overscroll-behavior-y:contain;
+}
+/* 隐藏滑动条：页面 / 弹层仍可正常滚动 */
+html,body,.sheet,.app{scrollbar-width:none;-ms-overflow-style:none}
+::-webkit-scrollbar{width:0;height:0;display:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.app{
+  width:100%;max-width:430px;background:var(--paper);
+  /* v1.2.8：竖向排成「顶栏 / 面板 / 版本行」，面板吃掉剩余高度，流水区在面板内部滚动；
+     v1.2.9：版本行移除，只剩「顶栏 / 面板」，面板因此多吃 25px 高度（下边框同步下移） */
+  height:100%;display:flex;flex-direction:column;min-height:0;
+  padding:7.67px 6px 7px;position:relative;   /* v1.2.5：顶 9→7.67px；v1.2.8：左右 9→6px（整体外扩） */
+}
+/* ---------- 顶部：设置 / 备份 / 恢复 / 明暗 ---------- */
+.topbar{display:flex;align-items:center;gap:6px;margin-bottom:9px}
+.spacer{flex:1}
+/* v1.1.8：显式主题底色，不能靠 button{background:none} 继承（否则不是「纯白/纯黑底」） */
+.bx{border:var(--line);height:32px;min-width:60px;padding:0 8px;font-size:var(--fs);letter-spacing:2px;white-space:nowrap;background:var(--paper)}
+.bx.stub{flex:0 0 auto}
+/* v1.1.8：悬停/按压也不许出现灰底，一律保持主题底色 */
+.bx:hover,.tab:hover,.plus:hover,.mini:hover,.date-label:hover,.month-label:hover{background:var(--paper)}
+.bx:active,.tab:active,.mini:active{background:var(--paper)}
+/* ---------- 主面板：日历 + 账单日期条 + 流水 ---------- */
+/* v1.2.6：面板内默认用内容区字号；v1.2.8：面板＝竖向 flex 容器，流水区在其中滚动 */
+.panel{border:var(--line);font-size:var(--fs-c);display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+/* v1.2.8：日历 / 日期条 / 资产汇总卡片是「上方固定不动的部分」，不参与伸缩 */
+.cal,.datebar,.asset-summary{flex:0 0 auto}
+.cal{border-bottom:var(--line);padding:6px 8px 8px}
+.cal-head,.datebar{display:flex;align-items:center;gap:6px}
+.month-zone,.date-zone{display:flex;align-items:center;gap:1px;flex:0 0 auto;white-space:nowrap}
+.month-label,.date-label{font-size:var(--fs-c);letter-spacing:1px;padding:2px 1px;background:var(--paper)}
+.mini{font-size:var(--fs-c);line-height:1;padding:2px 3px;color:var(--ink);background:var(--paper)}
+/* v1.3.8：三格 KPI 在窄屏会被「支出-20095.3 / 收入+1336.66 / 结余-18758.64」撑出省略号。
+   这里按父级 .panel 的 --fs-c 缩到 .86em（日历行与日期条共用同一套 .kpi），
+   字号跟着主题 / 平板断点自动缩放，不写死 px，也不改日期区与三格的布局。 */
+.kpi{display:flex;flex:1;min-width:0;justify-content:space-between;gap:2px;font-size:.86em;white-space:nowrap}
+.kpi span{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis}
+.days{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;margin-top:7px}
+.day{position:relative;height:29px;display:grid;place-items:center;font-size:var(--fs-c);border:var(--bd) solid transparent}
+.day.has::after{content:"";position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:var(--ink)}
+/* v1.1.8：选中日期框＝主题底色 + 主题色实线框 + 加粗，不再是反色实心块 */
+.day.sel{background:var(--paper);color:var(--ink);border-color:var(--edge);font-weight:700}
+.day.sel.has::after{background:var(--ink)}
+.day.today:not(.sel){border:var(--bd) dashed var(--ink)}
+.datebar{border-bottom:var(--line);padding:5px 8px;position:relative}
+.hidden-picker{position:absolute;left:8px;bottom:2px;width:1px;height:1px;opacity:0;border:0;padding:0}
+/* ---------- 流水区 ---------- */
+/* v1.2.8：流水区＝面板里唯一的滚动容器。原来的 min-height:250px 只是为了让空流水时
+   面板不至于太矮；现在面板本身撑满剩余高度，若留着 250px 反而会把面板顶出外框。 */
+.flow{min-height:0;padding:0;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+/* v1.3.8：最后一条流水也要有底边（v1.3.7 把它去掉了，截图里末条是开口的）。
+   同时在列表底部留出 8px 内距：滚到底时，末条下边框与 .panel 底边之间隔着这段
+   主题底色，两条 2px 线不会贴在一起叠成 4px 大黑边。 */
+.flow-list{display:flex;flex-direction:column;gap:var(--flow-gap);padding-bottom:8px}
+.flow-row{
+  display:grid;grid-template-columns:26px minmax(0,1fr);
+  gap:var(--flow-gap);padding:var(--flow-gap) 5px;
+  border-bottom:var(--line);align-items:stretch;   /* 徽标随两行内容拉齐 */
+  cursor:pointer;   /* 第九版：点击可修改 / 删除 */
+}
+.flow-row:hover{background:#eef1f6}
+.badge{width:26px;height:auto;min-height:26px;border:var(--line);display:grid;place-items:center;font-size:var(--fs-c);line-height:1}
+/* 两行共用同一个 2 列网格：右列第一行放金额/箭头，第二行放账户（账户「跟随过去」） */
+.body{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--flow-gap);align-items:baseline;min-width:0}
+.line{display:contents}
+.line .l{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--flow-gap);min-width:0;font-size:var(--fs-c);overflow-wrap:anywhere;line-height:1.25}
+.line .l .piece{white-space:nowrap}
+/* 两行首块（分类 / 时间）等宽，使第二块（调整项 / 备注）左边缘对齐 */
+.line .l .piece:first-child{min-width:3.2em}
+.line .l .piece.note{white-space:normal}
+/* v1.3.4：不计入统计的流水，第二行备注后挂一枚「不计入」小标。
+   v1.3.6：全流水条文字统一为正文大小(--fs-c)+正文色(--ink)，小标不再用 --muted 弱化，
+   与分类 / 备注 / 时间 / 金额 / 账户 / 标签 同一套字号颜色；--warn 仍专用于 v1.3.3 缺账户警示。
+   不新增行、不改 grid、不动金额与账户文本。 */
+.line .l .piece.nc{color:inherit;font-size:inherit;white-space:nowrap}
+.line .l .piece.sub{color:inherit}   /* 时间颜色与正文统一 */
+/* 第九版：第一行不折行；调整项串用「|」连接成一块，过长省略，绝不换行到第二行 */
+.line1 .l{flex-wrap:nowrap}
+.line1 .l .piece.cat{flex:0 0 auto}
+.line1 .l .piece.adj{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.line .r{font-size:var(--fs-c);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.line1 .r .amt{font-variant-numeric:tabular-nums}
+/* v1.3.5：标签从第二行账户前移到第一行金额前，形成「标签|金额」连续串，随金额长度浮动。
+   v1.3.6 两处修正（用户 2026-11-11 确认：行内错位 + 全流水条统一字号颜色）：
+   ① 行内上下错位：旧 .tag 是 inline-block + overflow:hidden，按 CSS 规范其 baseline 落在
+      盒子底边，导致「标签」相对「|金额」下沉。改 .r.has-tag 为 inline-flex + align-items:center，
+      三者按中线齐平（同字号同行高，中线对齐即齐平）；金额仍贴右、仍随金额长度浮动。
+   ② 颜色统一：标签的 | 由 --muted 灰改为正文色 inherit，与调整项的「优惠|」同色；
+      全流水条一律 --fs-c / --ink，仅缺账户 --warn（v1.3.3 功能色）例外。
+   金额不设 max-width、不省略；标签沿用 5.5em 上限省略防撑爆。无标签行 DOM/几何零改动。 */
+.line1 .r.has-tag{display:inline-flex;align-items:center;justify-content:flex-end}
+.line1 .r.has-tag .tag{display:inline-block;max-width:5.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.line1 .r.has-tag .sep{color:inherit}
+.line1 .r.has-tag .amt{font-variant-numeric:tabular-nums}
+/* v1.3.5：第二行右列回归纯账户单串，不再拆两槽；标签已移至第一行金额前、随金额浮动。 */
+.line2 .l{font-size:var(--fs-c)}
+.empty{padding:26px 8px;text-align:center;color:var(--muted);font-size:var(--fs-c)}
+/* ---------- 资产页（只读） ---------- */
+/* 顶部三张汇总卡片：资产页时替代日历 + 账单日期条 */
+.asset-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--flow-gap);padding:6px 0}
+.asset-summary .card{border:var(--line);min-width:0;padding:5px 3px;text-align:center;font-size:var(--fs-c);line-height:1.4}
+.asset-summary .card span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset-summary .card .val{font-variant-numeric:tabular-nums}
+.asset-list{padding:6px 0;display:flex;flex-direction:column;gap:.5em}
+.asset-group{border:var(--line);border-radius:var(--r);padding:2px 4px;overflow:hidden}
+body.tab-asset .panel,body.tab-overview .panel{border:0;border-radius:0}
+.asset-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:var(--flow-gap);padding:var(--flow-gap) 2px;border-bottom:var(--bd) solid #dde3ec;font-size:var(--fs-c);align-items:baseline}
+.asset-row>span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.asset-row.group{font-weight:700;border-bottom:var(--line);margin-top:0}
+.asset-row.subtotal{font-weight:700;border-bottom:0}
+.asset-row.total{font-weight:700;border-bottom:0;border-top:var(--line);margin-top:3px}
+/* 信贷账户：账户行下方左侧「已用/额度」、右侧「可用」 */
+.asset-item.credit .asset-row{border-bottom:0}
+.credit-meta{display:flex;justify-content:space-between;gap:var(--flow-gap);padding:0 2px var(--flow-gap);border-bottom:var(--bd) solid #dde3ec;font-size:var(--fs-c);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.25}
+.credit-meta span:last-child{text-align:right}
+/* ---------- v1.4.0：总览页直出三块本年网格（每块三行，格子 6 列） ----------
+   沿革：v1.3.8「三切换键共用一个 12 月格」→ v1.3.9「hub 三入口卡 + 三个独立页」
+   → v1.3.10 三块同时直出在总览页 → 本版只改版式，一个取数口径都不动。
+   每块三行（用户 2026-11-12 给的样张）：
+     第一行  2026 年 | 本年结余 +25,420.00    ← 年份 / 竖线 / 指标名 / 本年合计
+     第二行  1  2  3  4  5  6                 ← 6 个格子
+     第三行  7  8  9 10 11 12                 ← 6 个格子
+   v1.3.10 是「5 列 × 3 行 + 占 3 列的『本年』格」，本版把格子由 5 列改成 6 列，
+   12 个格子正好铺满两行；「本年」格取消，它的合计金额上提到第一行右侧。
+   三块仍由同一个 ovBlockHTML(k) 渲染，块结构逐字相同，只有指标名与金额不同。
+   沿用三条硬规则：月份格纯展示不可点、不做热力深浅、只显示金额；
+   格线仍是每格画右 + 下两条，由 .ov-heat 外框补齐左 + 上，末列去右边、末行去下边，
+   避免与外框贴成 4px 大黑边。 */
+.ov-cards+.ov-cards{border-top:0}
+/* v1.4.1：三块各画完整四边 —— 「本年收入 / 本年支出」不再缺顶边。
+   v1.3.10 用 border-top:0 是为了防两块贴成 4px 粗线，但块与块之间本来就
+   隔着前一块的 6px 下外距（margin-top:0 只压掉后一块自己的上外距），
+   结果后两块的左右竖线都画了、顶上却空着，看起来像「卡片没封口」。
+   现恢复上边框：每块都是完整矩形，块间是 6px 白隙 + 两条各自独立的 2px 线，
+   不会叠成 4px 粗线；格线粗细与外框仍一致。 */
+.ov-heat{border:var(--line);margin:6px 0}
+.ov-heat+.ov-heat{margin-top:0;border-top:var(--line)}
+/* 第一行：年份 | 本年X 合计 —— 一行左对齐，竖线是真实字符 */
+.ov-heat-head{display:flex;align-items:center;gap:4px;padding:4px 6px;border-bottom:var(--line)}
+.ov-heat-year{font-size:var(--fs-c);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* 竖线：用户明确要求保留，用真字符而非边框。
+   v1.4.1：大小 / 颜色与账单页「标签|金额」的竖线一致 —— 字号同为 --fs-c，
+   颜色由原先压淡半透明灰的写法改回主题正文色（账单页 .sep{color:inherit}），
+   白天纯黑、夜晚纯白，昼夜随 --ink 自动切换。 */
+.ov-sep{font-style:normal;font-size:var(--fs-c);line-height:1;color:var(--ink)}
+.ov-heat-title{font-size:var(--fs-c);white-space:nowrap}
+.ov-heat-sum{font-size:var(--fs-c);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ov-heat-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.ov-cell{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 2px;border-right:var(--line);border-bottom:var(--line);font-size:var(--fs-c);line-height:1.2}
+.ov-cell:nth-child(6n){border-right:0}
+.ov-heat-grid>.ov-cell:nth-last-child(-n+6){border-bottom:0}
+.ov-mo{white-space:nowrap}
+.ov-val{font-size:.82em;white-space:nowrap;font-variant-numeric:tabular-nums;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+/* ---------- 底部 dock：固定悬浮，不随页面滚动 ---------- */
+.bottombar{
+  position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+  width:100%;max-width:430px;z-index:30;margin:0;
+  display:flex;justify-content:center;gap:6px;
+  /* v1.2.5：去掉 dock 栏自身的 2px 顶部分隔线（用户要求手机端/平板端都不再有这条线）。
+     按钮各自的 2px 外框保留 —— 那是「账单/记账/资产」三个按钮的轮廓，不是栏分隔线。 */
+  background:var(--paper);border-top:0;
+  /* v1.2.10：底 4→2px —— 三个按钮的下边框到屏幕底边原来留 4px，用户要求再往下「一半距离」，
+     故内距减半为 2px，按钮组整体下移 2px（顶部 7px 与左右 9px 一字未动）。 */
+  padding:7px 10px calc(2px + env(safe-area-inset-bottom,0px));
+  /* v1.1.9：不再投影。灰晕压在顶边上会把这条线糊成「更粗/两条叠一起」的观感 */
+}
+/* v1.1.9：顶边上方主题纯色缓冲带 —— 滚动中的内容先被底色遮住，不与 dock 顶边贴连。
+   v1.2.5：分隔线撤掉后，缓冲带改 top:-6px/height:6px 刚好盖到 dock 顶边（原来 -8px 起、
+   留 2px 给那条黑线；线没了若不补这 2px，滚动内容会从缝里透出一条 2px 的残影）。 */
+.bottombar::before{content:"";position:absolute;left:0;right:0;top:-6px;height:6px;background:var(--paper)}
+.bottombar>button{position:relative;border:var(--line);height:36px;font-size:var(--fs);letter-spacing:2px;background:var(--paper);flex:1 1 0;min-width:0;margin-left:0}
+.tab{width:auto}
+/* 底部第 4 项：原「+」已改为「记账」文本按钮，类名沿用避免影响边框回归。
+   v1.3.7：与其它三项同宽（原 66px 撤销），四周框线同样保留。 */
+.bottombar>button.plus{width:auto;font-weight:700}
+/* 拆分独立边框：四块各自完整框线、四角全圆，gap:6px 分隔；不再用负边距折叠共享竖线。 */
+.bottombar>button:first-child{margin-left:0}
+/* v1.4.1：手机端四个框整体上移 6px，底角不再被屏幕圆角 / 系统手势区压住。
+   用相对定位做纯视觉位移：dock 内距（7/9/2）与盒高 45px、body 让位 46px、
+   面板↔dock 的 8px 呼吸位一律不动，只把四个框本身抬起来；
+   平板（>=560px）是左侧竖排侧栏，没有贴底遮挡问题，媒体块里改回 0。 */
+.bottombar>button{top:-6px}
+/* v1.1.9：dock 选中态＝主题底色 + 悬浮短指示条（加粗自 v1.4.1 起撤销，见下方注释）。
+   v1.1.8 的 inset 0 -3px 紧贴按钮 2px 下边框，二者融成 5px 粗黑边
+   （真机 1080×2374 截图：选中 15 物理 px / 未选 6 物理 px），看起来就是「黑边又重叠了」。
+   本版把指示条抬到距底 5px、宽 24px，与下边框之间留 5px 主题底色，彻底不再连成一片。 */
+.tab.active{background:var(--paper);color:var(--ink)}
+/* v1.4.1：选中页签的文字与未选中页签同字号同字色 —— 撤掉 font-weight:700，
+   「总览」不再比「账单」显粗显大。选中态仍由下面那条 24px 悬浮短指示条表达，
+   不引入反色块 / 灰底 / 彩色等非黑白手段。 */
+.tab.active::after{content:"";position:absolute;left:50%;bottom:5px;transform:translateX(-50%);width:24px;height:3px;background:var(--ink)}
+/* v1.2.9：页脚那一行（右对齐、--fs 字号、#aaa 字色、margin-top 7px、letter-spacing 1px、
+   flex:0 0 auto）的样式规则已随节点一并移除，不在这里留空规则占位 */
+.toast{
+  position:fixed;left:50%;bottom:calc(58px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(8px);
+  background:#111;color:#fff;padding:8px 14px;font-size:var(--fs);border-radius:2px;
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:99;white-space:nowrap;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ---------- 弹层（记账 / 设置 / 账户 / 恢复 / 选项）：垂直居中悬浮 ----------
+   v1.2.5：原来 bottom:0 贴屏幕底、只从下方滑上来；手机上 523px 高的记账页贴在底部，
+   上方空 228px，观感「压在底下」。改为 top:50% + translate(-50%,-50%) 垂直居中，
+   进场仍是从下方 2.5em 浮起的一点位移；底边不再是纸色遮掉的状态——
+   四周都画 2px 实线框（原来把底边染成纸色遮掉，现在撤掉），像一块悬浮卡片。 */
+.sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.sheet-mask.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:50%;top:50%;bottom:auto;width:100%;max-width:430px;max-height:94vh;overflow-y:auto;
+  background:var(--paper);border:var(--line);padding:7px 9px calc(20px + env(safe-area-inset-bottom,0px));z-index:41;
+  visibility:hidden;transform:translate(-50%,-50%) translateY(2.5em);
+  transition:transform .22s ease,visibility .22s;
+}
+.sheet.on{visibility:visible;transform:translate(-50%,-50%)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:var(--fs)}
+.sheet-close{width:26px;height:26px;border:var(--line);font-size:var(--fs);line-height:1}
+/* 编辑模式：删除二次确认条 */
+.del-confirm{display:flex;align-items:center;gap:var(--flow-gap);flex-wrap:wrap;border:var(--line);padding:3px 5px;margin-bottom:6px;font-size:var(--fs)}
+.del-confirm span{flex:1;min-width:7em}
+.del-confirm button{border:var(--line);padding:2px 7px;font-size:var(--fs);white-space:nowrap}
+.type-row{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--flow-gap);margin-bottom:6px}
+.type-row button{border:var(--line);height:29px;font-size:var(--fs);background:var(--paper)}
+/* v1.2.0：选中态与「明暗」按钮 / 日历选中日 / dock 选中态同一套三件套
+   —— 主题底色 + 主题色字 + 加粗，不再是反色实心块（白天黑底白字 / 夜晚白底黑字） */
+.type-row button.active{background:var(--paper);color:var(--ink);font-weight:700}
+/* 四行字段：每行内字段横向平铺；3 字段行三等分、2 字段行二等分 */
+.field-grid{display:flex;flex-direction:column;gap:var(--flow-gap);margin-bottom:6px}
+.frow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--flow-gap);min-width:0}
+.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fitem{display:block;min-width:0;position:relative}
+.flab{display:block;font-size:var(--fs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fitem input,.fitem select{
+  display:block;width:100%;min-width:0;height:27px;padding:0 2px;
+  font:inherit;font-size:var(--fs);color:inherit;background:var(--paper);
+  border:var(--bd) solid #c9d6e8;border-radius:0;
+}
+/* 日期列较窄，原生 date input 会被截断；改用短格式按钮 + 隐藏的原生选择器 */
+.date-btn{display:block;width:100%;min-width:0;height:27px;padding:0 2px;font:inherit;font-size:var(--fs);color:inherit;background:var(--paper);border:var(--bd) solid #c9d6e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+/* 优先级需高于 .fitem input，否则会被撑成 27px 高、盖住日期按钮 */
+.fitem .hidden-picker2{position:absolute;left:2px;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;display:block;pointer-events:none}
+.fitem .keypad-field{font-variant-numeric:tabular-nums;text-align:right}
+.fitem .keypad-field.active{border-color:var(--edge);box-shadow:inset 0 0 0 1px var(--ink)}
+/* 类型联动：禁用的账户下拉不可填 */
+.fitem select:disabled{background:#f0f0f0;color:#999}
+/* ---------- v1.1.7：紧凑选项弹层，替代 WebView 原生 select 对话框 ----------
+   原生 <select> 由系统绘制：真机 1080×2374 实测弹层 #424242、行高 195px、占屏 89%，
+   网页 CSS 改不了它的字号 / 行高 / 高度。保留 select 作数据容器（继续显示当前值，
+   .value 读写与 change 事件全部照旧），用透明命中层接管点击，选项渲染进网页弹层。 */
+.fitem select{pointer-events:none}
+.sel-hit{position:absolute;left:0;right:0;bottom:0;height:27px;background:transparent;border:0;padding:0;cursor:pointer;z-index:1;outline:none}
+.picker-mask{z-index:60}
+.sheet.picker{z-index:61;max-width:360px;max-height:none;overflow:visible;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.picker-list{max-height:min(46vh,340px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.picker-row{
+  display:block;width:100%;height:36px;line-height:36px;padding:0 9px;text-align:left;
+  border:0;border-bottom:1px solid #dde3ec;background:var(--paper);color:var(--ink);
+  font:inherit;font-size:var(--fs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* v1.2.0：按压不再出灰底；选中行与全站选中态同款（纯底 + 纯字 + 加粗） */
+.picker-row:active{background:var(--paper)}
+.picker-row.cur{background:var(--paper);color:var(--ink);font-weight:700}
+/* 备注框独立于四行字段区，保持 #fieldGrid 仍为 4 行。
+   v1.3.4：从备注行切出右侧一格放「不计入」勾选框（仅支出 / 收入显示）。
+   grid 定列，备注 label / input 结构一字未动；勾选框隐藏时切回单列，绝不留空格子。 */
+.note-line{display:grid;grid-template-columns:minmax(0,1fr) 5.8em;gap:var(--flow-gap);margin-bottom:6px}
+.note-line.no-nc{grid-template-columns:minmax(0,1fr)}
+.nc-item .nc-box{
+  display:flex;align-items:center;justify-content:center;gap:.25em;height:27px;
+  border:var(--bd) solid #c9d6e8;background:var(--paper);font-size:var(--fs);
+  white-space:nowrap;overflow:hidden;cursor:pointer;
+}
+/* .fitem input 会把复选框撑成整宽 27px，这里按控件自身尺寸覆盖回去 */
+.nc-item .nc-box input{
+  display:inline-block;width:auto;height:auto;min-width:0;padding:0;margin:0;
+  border:0;background:transparent;color:inherit;font:inherit;accent-color:var(--ink);
+}
+.nc-item .nc-box.on{border-color:var(--edge);box-shadow:inset 0 0 0 1px var(--ink)}
+.expr-line{border:var(--line);padding:3px 5px;margin-bottom:6px;font-size:var(--fs);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.keypad-wrap{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:var(--flow-gap)}
+.numpad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--flow-gap)}
+.numpad button,.ops button,.opcol>.act{border:var(--line);height:34px;font-size:var(--fs)}
+.ops{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--flow-gap);margin-bottom:var(--flow-gap)}
+.opcol>.act{width:100%;margin-bottom:var(--flow-gap)}
+.opcol>.act:last-child{margin-bottom:0}
+/* ---------- 设置页：分类与标签管理（与记账页同款底部弹层） ---------- */
+.set-tip{margin:0 0 6px;font-size:var(--fs);line-height:1.35}
+.set-sec{border:var(--line);padding:5px 6px;margin-bottom:6px}
+.set-sec h3{margin:0 0 5px;font-size:var(--fs);font-weight:700}
+.set-group{margin-bottom:6px}
+.set-group:last-child{margin-bottom:0}
+.set-glab{display:block;font-size:var(--fs);margin-bottom:3px}
+.set-items{display:flex;flex-wrap:wrap;gap:var(--flow-gap);margin-bottom:3px;min-height:20px;align-items:center}
+.set-item{display:inline-flex;align-items:center;gap:3px;border:var(--line);padding:1px 3px;font-size:var(--fs);max-width:100%}
+.set-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:8em}
+.set-empty{font-size:var(--fs);color:var(--muted)}
+.set-del{font:inherit;font-size:var(--fs);line-height:1;padding:0 1px}
+.set-add{display:flex;gap:var(--flow-gap)}
+.set-add input{flex:1;min-width:0;height:26px;padding:0 3px;font:inherit;font-size:var(--fs);color:inherit;background:var(--paper);border:var(--bd) solid #c9d6e8;border-radius:0}
+.set-add button{border:var(--line);padding:0 8px;font-size:var(--fs);white-space:nowrap}
+/* ---------- 资产页：新增 / 修改账户 ---------- */
+.asset-tools{display:flex;justify-content:flex-end;margin-bottom:5px}
+.asset-tools button{border:var(--line);padding:3px 8px;font-size:var(--fs-c)}
+.asset-item[data-acct]{cursor:pointer}
+.asset-item[data-acct]:hover{background:#eef1f6}
+.asset-empty{padding:14px 2px;text-align:center;color:var(--muted);font-size:var(--fs-c)}
+/* 账户编辑弹层 */
+.acct-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--flow-gap);margin-bottom:8px}
+.acct-actions{display:flex;align-items:center;gap:var(--flow-gap)}
+.acct-actions .bx{height:30px;flex:0 0 auto}
+.acct-actions .spacer{flex:1}
+.acct-actions .danger{color:#a00}
+/* ---------- 设置页：数据 / 坚果云 ---------- */
+.set-btns{display:flex;flex-wrap:wrap;gap:var(--flow-gap);margin-bottom:5px}
+.set-btns .bx{height:29px;letter-spacing:0;padding:0 8px}
+/* v1.2.0：设置页开关选中态同样归一为纯底 + 纯字 + 加粗 */
+.set-btns .bx.on{background:var(--paper);color:var(--ink);font-weight:700}
+/* v1.1.5：恢复来源选择框两个按钮等宽、加大触控面积 */
+#restoreBtns{flex-wrap:nowrap;margin-bottom:6px}
+#restoreBtns .bx{flex:1;height:36px;letter-spacing:0;padding:0 8px}
+.ns-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--flow-gap);margin-bottom:6px}
+.ns-status{font-size:var(--fs);line-height:1.4;white-space:pre-wrap;min-height:1.4em;color:#66707d}
+.ns-status.ok{color:#0d7f44}
+.ns-status.err{color:#a00}
+.ns-status.load{color:#66707d}
+@media (max-width:360px){
+  .app{padding:5.67px 6px 7px} /* v1.2.5：顶 7→5.67px，与 body 顶 0px 合计再上移 5.33px；v1.2.8：左右 7→6px */
+  .bx{min-width:52px;padding:0 5px;letter-spacing:0}
+}
+/* ---------- v1.1.6「明暗」：亮色态与 v1.1.5 逐字一致，仅 data-theme=dark 时覆盖 ---------- */
+/* 顶栏新增第 4 个按钮后，窄屏（360px）不能溢出：stub 不再强制 60px 最小宽 */
+.topbar .bx.stub{min-width:0;padding:0 6px;letter-spacing:1px}
+/* v1.1.8：「明暗」在黑夜态不再反色，仅加粗表示当前为黑夜 */
+#btnTheme[aria-pressed="true"]{background:var(--paper);color:var(--ink);font-weight:700}
+/* 变量反转：--line / .day.sel / .tab.active 等引用变量处自动跟随，无需逐条重写 */
+html[data-theme="dark"]{
+  --ink:#e6edf3;                         /* v1.4.5：参考同类看板应用 dark --text（夜晚文字/前景） */
+  --paper:#0d1117;                       /* v1.4.5：参考同类看板应用 dark --bg（夜晚页面底） */
+  --edge:#2d3a52;                        /* v1.4.5：新增 --edge，参考同类看板应用 dark --edge，边框色 */
+  --muted:#8b949e;
+  --warn:#f85149;                        /* v1.4.5：参考同类看板应用 dark --up（警示红） */
+  color-scheme:dark;
+  background:var(--paper);
+}
+/* v1.1.8：暗色悬停/按压同样保持纯黑底，禁止 #2b2b2b / #3a3a3a 灰块 */
+html[data-theme="dark"] .bx:hover,
+html[data-theme="dark"] .tab:hover,
+html[data-theme="dark"] .plus:hover,
+html[data-theme="dark"] .mini:hover,
+html[data-theme="dark"] .date-label:hover,
+html[data-theme="dark"] .month-label:hover,
+html[data-theme="dark"] .bx:active,
+html[data-theme="dark"] .tab:active,
+html[data-theme="dark"] .mini:active{background:var(--paper)}
+html[data-theme="dark"] .mini{color:var(--ink)}
+html[data-theme="dark"] .day.today:not(.sel){border-color:var(--edge)}
+html[data-theme="dark"] .flow-row:hover,
+html[data-theme="dark"] .asset-item[data-acct]:hover{background:#1c2230}
+html[data-theme="dark"] .asset-row,
+html[data-theme="dark"] .credit-meta{border-bottom-color:#262d3a}
+html[data-theme="dark"] .toast{background:#f0f0f0;color:#111}
+html[data-theme="dark"] .sheet-mask{background:rgba(0,0,0,.62)}
+html[data-theme="dark"] .fitem input,
+html[data-theme="dark"] .fitem select,
+html[data-theme="dark"] .date-btn,
+html[data-theme="dark"] .set-add input{border-color:#30363d}
+html[data-theme="dark"] .fitem select:disabled{background:#161b22;color:#8b949e}
+html[data-theme="dark"] .nc-item .nc-box{border-color:#30363d}
+html[data-theme="dark"] .acct-actions .danger{color:#ff8080}
+html[data-theme="dark"] .ns-status{color:#b5b5b5}
+html[data-theme="dark"] .ns-status.ok{color:#63d68d}
+html[data-theme="dark"] .ns-status.err{color:#ff8080}
+html[data-theme="dark"] .ns-status.load{color:#b5b5b5}
+/* v1.1.7：紧凑选项弹层在黑夜下的 1px 行分隔线（分隔线，非控件边框）；
+   v1.2.0：按压色与选中行已归一为主题纯色，不再出现 #2b2b2b 灰块 / 反色实心行 */
+html[data-theme="dark"] .picker-row{border-bottom-color:#262d3a}
+html[data-theme="dark"] .picker-row:active{background:var(--paper)}
+/* ---------- v1.3.3：流水条「未填写完整账户」高亮 ----------
+   v1.3.2 把提示放在记账表单里、还标成必填项，方向错了：转账 / 还款 / 报销 的支出账户
+   本来就不是必填项，只填一端是合法的业务状态，不该在录入时催用户补齐。
+   本版移除表单高亮，改在**流水条**上标「这条记录账户不全」，事后提醒、不打断录入。
+
+   判定直接读记录自身的 from / to（见 rowHTML 的 lackOf），不写 localStorage、不设本机
+   状态 —— 备份 / 导出 / 云恢复到另一台设备后照样亮，这是「切换设备也保留」的实现方式。
+
+   两条布局约束：
+   1) 左侧红条用 inset box-shadow 而非 border-left —— border 会占盒宽，让高亮行的
+      grid 内容比普通行右移 3px，整列就参差了；box-shadow 不进盒模型。
+   2) 徽标只改边框与文字色、账户位只改字色，不新增 DOM、不改文本 —— v1.3.5 起
+      第二行账户回归纯右对齐单串、标签在第一行金额前，两槽测量已停用，均不受影响。
+   --warn 仍是全站唯一一支彩色（亮 #a00 / 暗 #ff6f6f），其余纯黑白。 */
+.flow-row.lack{box-shadow:inset 3px 0 0 var(--warn)}
+.flow-row.lack .badge{border-color:var(--warn);color:var(--warn)}
+.flow-row.lack .line2 .r{color:var(--warn)}
+/* ---------- v1.2.1：平板 / 大屏等比适配（OPPO Pad mini 等） ----------
+   病根（真机竖屏/横屏截图 + 无头 Chrome 四视口实测）：
+     --fs:clamp(12px,3.4vw,15px) 上限 15px → 平板上字不放大；
+     .app / .bottombar / .sheet 三处 max-width:430px → 内容锁成一条窄列；
+     768 / 1024 / 1280 CSS px 视口下 .app 只占 56% / 42% / 33.6%，四周大片空白。
+   做法：--pad-w 与 --fs 同比例放大（70vw / 2.45vw = 28.6，手机端 430/15 = 28.7），
+     视觉密度与手机端完全一致，只是整体变大；硬编码 px 尺寸一律改 em 跟随 --fs。
+     --bd 改 1px：对齐同类看板应用边框粗细；延续「不叠加粗边」结论，昼夜仍是 1 CSS px 纯色边。
+   手机端 <=559px 不命中本块，一条规则都不覆盖，逐字零回归。 */
+@media (min-width:560px){
+  :root{
+    --fs:clamp(19px,2.45vw,31px);
+    --pad-w:clamp(620px,73vw,950px);       /* v1.2.8：内容列整体外扩（600/70vw/900 → 620/73vw/950） */
+    --rail-w:5.3em;                        /* v1.2.5：左侧竖排 dock 的栏宽 */
+    /* v1.2.6：内容区字号降为顶栏/记账的 88% —— 平板、桌面（Linux 窗口也是 768 宽，
+       同样命中本断点）一致生效；顶栏 .bx 与 .sheet 全部仍用 --fs，不参与缩放。 */
+    --fs-c:calc(var(--fs) * .88);
+  }
+  /* --flow-gap 放在 body：em 是 token，在使用它的元素上按该元素 font-size 计算，
+     全站 font-size 都是 var(--fs)，故 3px/15px = .2em 等比成立 */
+  body{
+    --flow-gap:.2em;
+    /* v1.2.5：dock 移到左侧后，底部不再预留 dock 高度（原 5.9em）；
+       左侧留出「栏宽 + .67em」——与右侧 .67em 左右对称，内容列在剩余区居中 */
+    padding:.93em .45em 1.1em calc(var(--rail-w) + .45em);   /* v1.2.8：左右 .67→.45em，与手机端同步外扩、两侧仍对称 */
+  }
+  /* 三个顶层容器同步放宽并居中，弹层与内容列严格同宽 */
+  .app{max-width:var(--pad-w);padding:.6em .45em .47em}
+  /* v1.2.4：dock 从底部改为【左侧竖排导航栏】（仅平板 >=560px；手机端基础规则一字未动）。
+     做法：贴左满高、竖排、居中排列三个按钮，
+     body 左侧已让出 --rail-w，内容列落在右侧剩余区并居中，不会被遮挡。
+     按钮各占满栏宽、彼此用 gap 分隔 —— 没有相邻 2px 边框叠成 4px 的问题。
+     ::before 那条「顶部纯色缓冲带」在侧栏场景无意义，隐藏。
+     v1.2.5：右侧 2px 竖分隔线也撤掉（用户要求两端 dock 都不留栏分割线），
+     栏与内容区靠 --rail-w 让位 + 内边距区分，不再画线。 */
+  .bottombar{
+    left:0;right:auto;top:0;bottom:0;transform:none;
+    width:var(--rail-w);max-width:none;
+    flex-direction:column;justify-content:center;gap:.6em;
+    border-top:0;border-right:0;
+    padding:1em .55em calc(1em + env(safe-area-inset-bottom,0px)) .55em;
+  }
+  .bottombar::before{display:none}
+  .sheet{max-width:var(--pad-w);padding:.47em .6em calc(1.33em + env(safe-area-inset-bottom,0px))}
+  /* 选项弹层是单列文字，不必跟内容列一样宽 */
+  .sheet.picker{max-width:clamp(470px,52vw,690px)}
+  /* v1.2.8：面板已撑满视口高度（原来靠这里按视口算最小高才不至于缩在顶部） */
+  .flow{min-height:0}
+  /* 顶栏 / 日历 / 日期条 */
+  .topbar{gap:.4em;margin-bottom:.6em}
+  .bx{height:2.13em;min-width:4em;padding:0 .53em;letter-spacing:.13em}
+  .cal{padding:.4em .53em .53em}
+  .cal-head,.datebar{gap:.4em}
+  .month-label,.date-label{padding:.13em .07em}
+  .mini{padding:.13em .2em}
+  .kpi{gap:.13em}
+  .days{gap:.13em;margin-top:.47em}
+  .day{height:1.93em}
+  .day.has::after{width:.2em;height:.2em;bottom:.13em}
+  .datebar{padding:.33em .53em}
+  /* 流水 / 资产列表 */
+  .flow-list{padding-bottom:.53em}   /* v1.3.8：平板同样留出末条底边与面板底边之间的呼吸 */
+  .flow-row{grid-template-columns:1.73em minmax(0,1fr);padding:var(--flow-gap) .33em}
+  .badge{width:1.73em;min-height:1.73em}
+  .empty{padding:1.73em .53em}
+  .asset-summary{padding:.4em 0}
+  .asset-summary .card{padding:.33em .2em}
+  .asset-list{padding:.27em 0}
+  .ov-heat{margin:.4em 0}
+  .ov-heat-head{padding:.27em .4em}
+  .ov-cell{padding:.33em .13em}
+  .asset-row{grid-template-columns:minmax(0,1fr) 6.4em}
+  .credit-meta{padding:0 .13em var(--flow-gap)}
+  /* dock（v1.2.5：竖排侧栏）——按钮占满栏宽、各自成块，.plus 恢复四周 2px 边框 */
+  .bottombar>button{width:100%;height:2.4em;letter-spacing:.13em}
+  .bottombar>button{top:0}   /* v1.4.1：侧栏竖排不上移 */
+  /* v1.3.7：竖排时主轴变成纵向，手机端那条 flex:1 1 0 会把 flex-basis 0 套到**高度**上
+     （按钮被压扁/撑满整栏），故这里显式改回不伸缩；相邻左边框也一并恢复 ——
+     竖排靠四周 2px 边框区分四个按钮，不共用竖线。 */
+  .bottombar>button{flex:0 0 auto;margin-left:0}
+  .tab{width:100%}
+  .bottombar>button.plus{width:100%;border:var(--line)}
+  /* 选中指示条改为竖条：贴在按钮右内缘（朝内容一侧）、垂直居中 */
+  .tab.active::after{left:auto;right:.35em;top:50%;bottom:auto;transform:translateY(-50%);width:.2em;height:1.5em}
+  /* v1.2.9：平板断点里原来给页脚补的 margin-top:.47em 已随节点一并移除（页脚已不存在） */
+  /* toast 居中到「内容区」（右侧剩余区）中心，而非整屏中心 */
+  .toast{padding:.53em .93em;bottom:calc(1.4em + env(safe-area-inset-bottom,0px));left:calc(50% + var(--rail-w) / 2)}
+  /* 记账 / 设置 / 账户弹层：与手机端同比例放大触控区 */
+  .sheet-head{margin-bottom:.4em}
+  .sheet-close{width:1.73em;height:1.73em}
+  .del-confirm{padding:.2em .33em;margin-bottom:.4em}
+  .del-confirm button{padding:.13em .47em}
+  .type-row{margin-bottom:.4em}
+  .type-row button{height:1.93em}
+  .field-grid{margin-bottom:.4em}
+  .fitem input,.fitem select{height:1.8em;padding:0 .13em}
+  .date-btn{height:1.8em;padding:0 .13em}
+  .sel-hit{height:1.8em}          /* 必须与 input/select 同步，否则点击命中区错位 */
+  .picker-list{max-height:min(46vh,24em)}
+  .picker-row{height:2.4em;line-height:2.4em;padding:0 .6em}
+  .note-line,.expr-line,.set-sec,.set-group{margin-bottom:.4em}
+  .nc-item .nc-box{height:1.8em;padding:0 .13em}
+  .expr-line{padding:.2em .33em}
+  .keypad-wrap{grid-template-columns:minmax(0,1fr) 6.1em}
+  .numpad button,.ops button,.opcol>.act{height:2.27em}
+  .ops,.opcol>.act{margin-bottom:var(--flow-gap)}
+  .set-tip{margin-bottom:.4em}
+  .set-sec{padding:.33em .4em}
+  .set-sec h3{margin-bottom:.33em}
+  .set-glab{margin-bottom:.2em}
+  .set-items{margin-bottom:.2em;min-height:1.33em}
+  .set-item{gap:.2em;padding:.07em .2em}
+  .set-add input{height:1.73em;padding:0 .2em}
+  .set-add button{padding:0 .53em}
+  .asset-tools{margin-bottom:.33em}
+  .asset-tools button{padding:.2em .53em}
+  .asset-empty{padding:.93em .13em}
+  .acct-form{margin-bottom:.53em}
+  .acct-actions .bx{height:2em}
+  .set-btns,#restoreBtns{margin-bottom:.33em}
+  .set-btns .bx{height:1.93em;padding:0 .53em}
+  #restoreBtns .bx{height:2.4em;padding:0 .53em}
+  .ns-grid{margin-bottom:.4em}
+}
+
+/* ---------- v1.2.5：平板竖屏整体上移到状态栏下方，露出资产管理中枢最顶上黑边 ----------
+   竖屏时顶部有两段留白：body 顶 .93em（768 竖屏 ≈17.7px）＋ .app 顶 .6em（≈11.4px），
+   共约 29px，首行按钮的黑框悬在状态栏下方一小段距离。用户要求「整体往上移，
+   到状态栏下方、露出资产管理中枢最顶上黑边」—— 把这两段顶部留白都归 0，
+   最外层首行（「资产管理中枢 / 备份 / 恢复 / 设置」这排按钮）的 2px 黑边就贴在状态栏正下方。
+   只做竖屏：横屏保持 v1.2.4 的 21.9px 留白（用户本次只提竖屏）；
+   手机端 <=559px 不命中本块，一条规则都不覆盖。 */
+@media (min-width:560px) and (orientation:portrait){
+  body{padding-top:0}
+  .app{padding-top:0}
+}
+
+/* ---------- v1.2.8：资产页两类账户「长按高亮」（v1.2.7 的长按拖拽已整体移除）----------
+   只加交互态样式，账面排版一个字不改（尺寸、字号、边框仍沿用既有规则）：
+     .asset-item 关掉长按选字 / 系统长按菜单，否则长按会先弹出系统菜单盖住页面；
+     .hl 是长按标记：白天、黑夜都用同一个中灰 #999；
+     黑夜下把字改成黑色 —— 白字压在中灰 #999 上对比度只有 2.9，几乎读不出金额。 */
+.asset-item[data-acct]{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.asset-item.hl,
+.asset-item.hl:hover{background:#999}
+html[data-theme="dark"] .asset-item.hl,
+html[data-theme="dark"] .asset-item.hl:hover{background:#999;color:#000}
+/* v1.2.8 需求 2：竖屏资产页不做页面滚动 —— 整页高度已锁死，这里再把流水区也锁住；
+   账户多到一屏真放不下时，JS 会给 body 加 .asset-overflow 退回可滚动，
+   否则底部的「总资产」会被裁在屏幕外，比能滚更难接受。 */
+body.tab-asset .flow{overflow:hidden;overscroll-behavior:none}
+body.tab-asset.asset-overflow .flow{overflow-y:auto}
+/* v1.2.8：视口太矮时（平板横屏 962×601、手机横屏等）上方固定区会吃掉大半个屏幕，
+   流水区只剩一两行，这时退回「整页滚动」（等同 v1.2.7 的观感），避免把流水挤成一条缝。
+   判据由 JS 实测：固定布局下流水区高度 < 220px 就给 body 加 .page-scroll。 */
+body.page-scroll{height:100dvh;overflow-y:auto;overscroll-behavior-y:contain}
+body.page-scroll .app{height:auto}
+body.page-scroll .panel{flex:0 0 auto}
+body.page-scroll .flow{overflow:visible}
+
+/* ===================== v1.4.2：全站小圆弧 =====================
+   用户要求「把矩形直角过渡改成小圆弧」。全站原本除 4 处（圆点 50% / toast 2px /
+   两处显式 0）外全是直角，本层统一给「有边界的容器与控件」两个半径令牌：
+     容器级 --r   = 8px   面板 / 三块本年卡片 / 弹层 / 设置区块
+     控件级 --r-s = 4px   按钮 / 输入框 / 徽标 / 日期格 / 汇总卡 / toast
+   平板（>=560px）按 --fs 等比换算成 em，与既有「硬编码 px 一律改 em 跟随字号」
+   的体系一致（962px 宽实测 8.3px），不做第二套绝对值。
+
+   刻意保持直角的三类（不是遗漏）：
+     1) .ov-cell 月份格 —— 每格只画右+下两条边、靠相邻边拼成表格；单独圆角会在
+        格与格的接缝处露出缺口。整体圆角交给父容器 .ov-heat 的 overflow:hidden 裁出，
+        观感是「一张圆角表格」而不是「一堆圆角小方块」。
+     2) .flow-row / .asset-row / .picker-row 列表行 —— 只有下边框，属分隔线不是卡片。
+     3) dock 四框的内部接缝 —— 四块靠 margin-left:-2px 折叠共用一条 2px 竖线，
+        每块都做四角圆会在接缝露出两个圆弧之间的缺口；故只圆首尾两块的外侧，
+        整体仍是一条连续的圆角长条。
+
+   本层追加在样式表末尾：上方既有声明一条未改，回滚只需整段删除。 */
+:root{--r:8px;--r-s:4px}
+
+/* ---- 容器级：面板 / 卡片 / 弹层 / 设置区块 ---- */
+.panel{border-radius:var(--r);overflow:hidden}    /* 裁出日历、日期条、流水区的四角 */
+.ov-heat{border-radius:var(--r);overflow:hidden}  /* 裁出 6 列格网的四角 */
+.sheet{border-radius:var(--r)}
+.set-sec{border-radius:var(--r)}
+
+/* ---- 控件级：按钮 / 输入框 / 徽标 / 日期格 / 汇总卡 / toast ---- */
+.bx,
+.sheet-close,
+.del-confirm,
+.del-confirm button,
+.type-row button,
+.date-btn,
+.nc-item .nc-box,
+.expr-line,
+.numpad button,
+.ops button,
+.opcol>.act,
+.set-item,
+.set-add button,
+.asset-tools button,
+.asset-summary .card,
+.badge,
+.day{border-radius:var(--r-s)}
+.fitem input,.fitem select,.set-add input{border-radius:var(--r-s)}
+.picker-list{border-radius:var(--r-s)}
+.toast{border-radius:var(--r-s)}
+
+/* ---- dock 四框：拆分独立边框，四块各自四角全圆、彼此 gap 分隔 ---- */
+.bottombar>button,
+.bottombar>button:first-child,
+.bottombar>button:last-child{border-radius:var(--r)}
+
+/* ---- 平板断点：侧栏四块竖排、彼此用 gap 分开，是独立卡片，四角都圆 ----
+   三个选择器必须并列写出：基础层的 :first-child / :last-child 特异性(0,2,1)
+   高于裸 .bottombar>button(0,1,1)，只写后者压不住首尾两块的旧值。 */
+@media (min-width:560px){
+  :root{--r:.4em;--r-s:.2em}
+  .bottombar>button,
+  .bottombar>button:first-child,
+  .bottombar>button:last-child{border-radius:var(--r)}
+}
+
+/* ===================== v1.4.4：顶栏五格 =====================
+   用户要求「将资产管理中枢按键移除，重新调整顶上ui」。
+   原六格是 资产管理中枢 / 设置 / 备份 / 恢复 / 明暗 / + 新增账户。本版把最左的「资产管理中枢」整格移除：
+     ① 标记与事件监听一并删除（它是 v1.0 起就有的品牌位，点击＝回到最新有流水的日期）；
+     ② v1.2.8 为它写的三处 26% 定宽声明（手机 / ≤360 / 平板）与配套注释一并删除
+        —— 元素不存在了，留着只是噪声；
+     ③ 剩下四个功能键等分整行：430px 下单格 57.8→73.8px、360px 下 46.7→59.9px、
+        962px 下 98.0→124.9px；
+     ④ 末格「+ 新增账户」仍按内容定宽 —— 动作入口不参与等分。
+
+   逐条压制的旧声明（不删，回滚整段删除即可）：
+     .bx.stub{flex:0 0 auto}          功能键原本不伸缩（v1.2.8 为保证「资产管理中枢」定宽时五键尺寸不变）
+                                      → 改回 flex:1 1 0
+     .topbar .bx.stub{padding:0 6px}  特异性 (0,3,0)，必须用同为 (0,3,0) 的 .topbar>.bx.stub 并列压住
+   字距用 .13em 而不是 2px：手机 14.6px→1.9px、平板 23.6px→3.1px，
+   格子变宽后 2 字标签需要一点松量才不显得空，且一套值覆盖两档断点。 */
+.topbar>.bx.stub{flex:1 1 0;min-width:0;padding:0 .28em;letter-spacing:.13em}
+.topbar>.bx.add{flex:0 0 auto;padding:0 .55em;letter-spacing:0}
+
+/* ===== 账单页流水条：整体独立一个边框（四边 + 圆角，独立卡片）=====
+   范围：body:not(.tab-asset):not(.tab-overview) = 账单页（bill 无 body 类）。
+   总览页最近流水(tab-overview) / 资产页账户列表(tab-asset) 不受影响。 */
+body:not(.tab-asset):not(.tab-overview) .flow-list{
+  gap:6px;                       /* 卡片间距，原 --flow-gap 3px */
+}
+body:not(.tab-asset):not(.tab-overview) .flow-row{
+  border:var(--line);            /* 四边独立边框（原仅 border-bottom） */
+  border-radius:var(--r-s);      /* 4px 小圆角 */
+  padding:var(--flow-gap) 6px;   /* 左右内距 5→6px，文字不贴边 */
+}
+
+/* ===== 账单页：去整页大外框 + 日期框保留圆角过渡 + 首条流水离日期留距 =====
+   范围：body:not(.tab-asset):not(.tab-overview) = 账单页（bill 无 body 类）。
+   总览页(tab-overview) / 资产页(tab-asset) 不受影响。 */
+/* 1) 去整页大外框（同资产页/总览页 body.tab-xxx .panel{border:0;border-radius:0} 写法） */
+body:not(.tab-asset):not(.tab-overview) .panel{
+  border:0;
+  border-radius:0;
+}
+/* 2) 日期框（日历 + 日期栏）保留圆角过渡：两块合成一个上下圆角的完整框
+   .cal 原仅 border-bottom；.datebar 原仅 border-bottom。现各自补边、分工圆角：
+   .cal     上两角圆 + 四边描边（底边保留作日历/日期栏之间的内分隔线）
+   .datebar 下两角圆 + 左右下三边（上边不画，与 .cal 底边共用一条线） */
+body:not(.tab-asset):not(.tab-overview) .cal{
+  border:var(--line);
+  border-radius:var(--r) var(--r) 0 0;
+}
+body:not(.tab-asset):not(.tab-overview) .datebar{
+  border:var(--line);
+  border-top:0;
+  border-radius:0 0 var(--r) var(--r);
+}
+/* 3) 第一条流水与日期栏拉开距离：原 .flow-list 无上内距，首条紧贴 datebar 底边 */
+body:not(.tab-asset):not(.tab-overview) .flow-list{
+  padding-top:8px;
+}
+
+/* ===== 资产页：移除两个账户分组末尾的「合计」文本行 =====
+   「资产账户合计」「信贷账户合计」两条 .asset-row.subtotal 全隐藏。
+   仅改显示：s.asset / s.credit 仍照常参与汇总卡、导出、备份，数值口径不变。 */
+body.tab-asset .asset-row.subtotal{
+  display:none;
+}
+
+/* ===== 资产页：去掉两张账户卡片末尾残留的横线 =====
+   合计行隐藏后，每组最后一条明细行原本用来分隔「合计行」的下边框暴露在
+   卡片底部内侧（距底边约 3px），成为多余横线。这里只去掉每组最后一条
+   .asset-item 的下边框；中间行分隔线、表头线、卡片外框一律保留。 */
+body.tab-asset .asset-group > .asset-item:nth-last-child(2) .asset-row,
+body.tab-asset .asset-group > .asset-item:nth-last-child(2) .credit-meta,
+body.tab-asset .asset-group > .asset-item:last-child .asset-row,
+body.tab-asset .asset-group > .asset-item:last-child .credit-meta{
+  border-bottom:0;
+}
+</style>
+<script>
+/* v1.1.6：主题在样式解析后、首帧绘制前应用，避免暗色启动闪白。
+   本块只用 document / localStorage，不引用主脚本任何 const，独立成块不受 TDZ 影响。 */
+try { const _t = localStorage.getItem('amhub_v100_theme');
+  if(_t !== 'light') document.documentElement.setAttribute('data-theme','dark'); }
+catch(e) { document.documentElement.setAttribute('data-theme','dark'); }
+</script>
+</head>
+<body>
+<div class="app" data-app="资产管理中枢" data-version="1.0.0">
+  <!-- v1.4.4：顶栏五格 —— 设置 / 备份 / 恢复 / 明暗 四格等分，
+       末格「+ 新增账户」按内容定宽。原最左的「资产管理中枢」按钮（回到最新有流水的日期）
+       已按用户要求整个移除，功能与样式一并下线，不留空位。 -->
+  <div class="topbar">
+    <button class="bx stub" id="btnSettings" title="分类与标签设置">设置</button>
+    <button class="bx stub" id="btnBackup" title="本地固定备份区 + 坚果云备份（不弹窗）">备份</button>
+    <button class="bx stub" id="btnRestore" title="选择恢复来源：本地备份 / 云端备份">恢复</button>
+    <button class="bx stub" id="btnTheme" title="当前：白天，点击切到黑夜" aria-pressed="false">明暗</button>
+    <button class="bx add" id="btnAddAccount" title="新增账户">+ 新增账户</button>
+  </div>
+
+  <div class="panel">
+    <section class="asset-summary" id="assetSummary" hidden></section>
+    <section class="cal" id="cal">
+      <div class="cal-head">
+        <div class="month-zone">
+          <button class="mini" id="prevMon" title="上一月" aria-label="上一月">‹</button>
+          <button class="month-label" id="monthLabel" title="当前月份">26年11月</button>
+          <button class="mini" id="nextMon" title="下一月" aria-label="下一月">›</button>
+        </div>
+        <div class="kpi" id="monthKpi"></div>
+      </div>
+      <div class="days" id="days"></div>
+    </section>
+
+    <section class="datebar" id="dateBar">
+      <div class="date-zone">
+        <button class="mini" id="prevDay" title="前一天" aria-label="前一天">‹</button>
+        <button class="date-label" id="dateLabel" title="点击选择日期">11月8日</button>
+        <button class="mini" id="nextDay" title="后一天" aria-label="后一天">›</button>
+      </div>
+      <div class="kpi" id="dayKpi"></div>
+      <input type="date" id="datePicker" class="hidden-picker" aria-label="选择账单日期">
+    </section>
+
+    <section class="flow" id="flow"></section>
+  </div>
+
+  <!-- v1.3.7：dock 四项 —— 总览 / 账单 / 资产 / 记账，四块矩形框等宽等高；
+       前三个是页签（.tab），最后一个是「记一笔」弹层入口（.plus，类名沿用）。
+       顺序与开屏页由 S.tab 决定：默认 'overview'。 -->
+  <div class="bottombar">
+    <button class="tab active" id="tabOv">总览</button>
+    <button class="tab" id="tabBill">账单</button>
+    <button class="tab" id="tabAsset">资产</button>
+    <button class="plus" id="btnAdd" title="记一笔" aria-label="记一笔">记账</button>
+  </div>
+  <!-- v1.2.9：页脚「资产管理中枢 v1.x.x」已移除（用户反馈占高度）。版本号仍可从 <title> 与
+       .app[data-version] 读到，导出 JSON 的 __ver 字段也照常写入，只是不再显示在页面上。 -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+
+  <!-- 记账页：从下方弹出。四行字段 = 日期/分类/标签 → 优惠/返现/手续费 → 支出账户/收入账户 → 收支金额/报销金额 -->
+  <div class="sheet-mask" id="sheetMask"></div>
+  <section class="sheet" id="sheet" aria-label="记账">
+    <div class="sheet-head"><span id="sheetTitle">记一笔</span><button class="sheet-close" id="sheetClose" aria-label="关闭">×</button></div>
+    <!-- 编辑模式专用：删除前二次确认，避免误触 -->
+    <div class="del-confirm" id="delConfirm" hidden>
+      <span>确认删除这条流水？</span>
+      <button id="delYes">确认删除</button><button id="delNo">取消</button>
+    </div>
+    <div class="type-row" id="typeRow">
+      <button data-type="expense" class="active">支出</button>
+      <button data-type="income">收入</button>
+      <button data-type="transfer">转账</button>
+      <button data-type="repay">还款</button>
+      <button data-type="reimburse">报销</button>
+    </div>
+    <div class="field-grid" id="fieldGrid">
+      <div class="frow" id="rowMain">
+        <label class="fitem"><span class="flab">日期</span>
+          <button type="button" class="date-btn" id="fDateBtn">11月8日</button>
+          <input type="date" id="fDate" class="hidden-picker2" aria-label="选择记账日期">
+        </label>
+        <div class="fitem" id="fCatItem"><span class="flab">分类</span><select id="fCategory"></select><button type="button" class="sel-hit" data-sel="fCategory" data-title="分类" aria-label="选择分类"></button></div>
+        <div class="fitem" id="fTagItem"><span class="flab">标签</span><select id="fTag"></select><button type="button" class="sel-hit" data-sel="fTag" data-title="标签" aria-label="选择标签"></button></div>
+      </div>
+      <div class="frow">
+        <label class="fitem"><span class="flab">优惠</span><input class="keypad-field" data-num="discount" id="fNumDiscount" readonly></label>
+        <label class="fitem"><span class="flab">返现</span><input class="keypad-field" data-num="cashback" id="fNumCashback" readonly></label>
+        <label class="fitem"><span class="flab">手续费</span><input class="keypad-field" data-num="fee" id="fNumFee" readonly></label>
+      </div>
+      <div class="frow two">
+        <div class="fitem"><span class="flab">支出账户</span><select id="fFrom"></select><button type="button" class="sel-hit" data-sel="fFrom" data-title="支出账户" aria-label="选择支出账户"></button></div>
+        <div class="fitem"><span class="flab">收入账户</span><select id="fTo"></select><button type="button" class="sel-hit" data-sel="fTo" data-title="收入账户" aria-label="选择收入账户"></button></div>
+      </div>
+      <div class="frow two">
+        <label class="fitem"><span class="flab">收支金额</span><input class="keypad-field" data-num="amount" id="fNumAmount" readonly></label>
+        <label class="fitem"><span class="flab">报销金额</span><input class="keypad-field" data-num="reimbursed" id="fNumReimbursed" readonly></label>
+      </div>
+    </div>
+    <div class="note-line no-nc" id="noteLine"><label class="fitem"><span class="flab">备注</span><input type="text" id="fNote" maxlength="60" placeholder="选填"></label>
+      <label class="fitem nc-item" id="fNoCountItem" hidden><span class="flab">统计</span><span class="nc-box" id="fNoCountBox"><input type="checkbox" id="fNoCount"><span>不计入</span></span></label>
+    </div>
+    <div class="expr-line" id="exprLine">收支金额　0 = 0</div>
+    <div class="keypad-wrap">
+      <div class="numpad" id="numpad">
+        <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+        <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+        <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+        <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
+      </div>
+      <div class="opcol" id="opcol">
+        <div class="ops">
+          <button data-op="+">+</button><button data-op="-">-</button>
+          <button data-op="×">×</button><button data-op="÷">÷</button>
+        </div>
+        <button class="act" id="btnAgain">再记</button>
+        <button class="act" id="btnSave">保存</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 设置页：分类与标签管理，同样从下方弹出 -->
+  <div class="sheet-mask" id="settingsMask"></div>
+  <section class="sheet" id="settings" aria-label="设置">
+    <div class="sheet-head"><span>设置</span><button class="sheet-close" id="settingsClose" aria-label="关闭">×</button></div>
+    <div id="settingsBody"></div>
+  </section>
+
+  <!-- v1.1.5：顶部「恢复」先选来源，避免误覆盖；两种恢复都会覆盖本机数据 -->
+  <div class="sheet-mask" id="restoreMask"></div>
+  <section class="sheet" id="restoreSheet" aria-label="选择恢复来源">
+    <div class="sheet-head"><span>选择恢复来源</span><button class="sheet-close" id="restoreClose" aria-label="关闭">×</button></div>
+    <div class="set-btns" id="restoreBtns">
+      <button class="bx" data-restore="local">本地备份</button>
+      <button class="bx" data-restore="cloud">云端备份</button>
+    </div>
+    <p class="set-tip">本地备份：优先读取应用内固定备份区，尚无备份时才选择本机 JSON 文件；云端备份：从坚果云拉取最新备份。两种恢复都会覆盖本机全部账单与资产。</p>
+  </section>
+
+  <!-- 账户新增 / 修改弹层：资产页点击账户行或「+ 新增账户」打开 -->
+  <div class="sheet-mask" id="acctMask"></div>
+  <section class="sheet" id="acctSheet" aria-label="账户">
+    <div class="sheet-head"><span id="acctTitle">新增账户</span><button class="sheet-close" id="acctClose" aria-label="关闭">×</button></div>
+    <div class="acct-form">
+      <label class="fitem"><span class="flab">账户名称</span><input type="text" id="aName" maxlength="20" placeholder="必填"></label>
+      <div class="fitem"><span class="flab">账户类型</span><select id="aKind"><option value="asset">资产账户</option><option value="credit">信贷账户</option></select><button type="button" class="sel-hit" data-sel="aKind" data-title="账户类型" aria-label="选择账户类型"></button></div>
+      <label class="fitem"><span class="flab">当前余额</span><input type="text" id="aBalance" inputmode="decimal" placeholder="0.00"></label>
+      <label class="fitem" id="aLimitItem"><span class="flab">信用额度</span><input type="text" id="aLimit" inputmode="decimal" placeholder="留空 = 未设额度"></label>
+    </div>
+    <div class="acct-actions">
+      <button class="bx danger" id="aDel">删除账户</button>
+      <span class="spacer"></span>
+      <button class="bx" id="aCancel">取消</button>
+      <button class="bx" id="aSave">保存</button>
+    </div>
+  </section>
+
+  <!-- v1.1.7：紧凑选项弹层。点「支出账户」等下拉时走这里，不再弹系统全屏单选框；
+       层级高于记账/账户/设置弹层，因为选择器常在这些弹层内部被触发。 -->
+  <div class="sheet-mask picker-mask" id="pickerMask"></div>
+  <section class="sheet picker" id="pickerSheet" aria-label="选择选项">
+    <div class="sheet-head"><span id="pickerTitle">请选择</span><button class="sheet-close" id="pickerClose" aria-label="关闭">×</button></div>
+    <div class="picker-list" id="pickerList"></div>
+  </section>
+</div>
+
+<script>
+/* 数据来源：v1.1.0 起不再内嵌任何账单与资产，出厂即空数据。
+   全部数据统一存 localStorage['amhub_v100_db']，由导入 / 手动新增 / 记账 / 云恢复写入。
+   旧版 v1.0.0 的 amhub_v100_added 只在首次启动时迁移一次（用户自己记的流水不丢）。 */
+const DB_KEY = 'amhub_v100_db';
+const EMPTY_DB = __LEDGER_DATA__;
+const readJSON = (k, fb) => {
+  try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return (v === null || v === undefined) ? fb : v; }
+  catch(e){ return fb; }
+};
+const todayISO = () => {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+};
+/* 备份 / 导入的数据一律过这里：结构兜底 + 凭据剔除（坚果云账号密码绝不落浏览器） */
+function normalizeDB(d){
+  if(!d || typeof d !== 'object' || Array.isArray(d)) throw new Error('备份格式不正确');
+  if(!Array.isArray(d.tx) && !Array.isArray(d.accounts)) throw new Error('不是资产管理中枢备份文件');
+  const base = JSON.parse(JSON.stringify(EMPTY_DB));
+  const o = Object.assign(base, d);
+  o.accounts = Array.isArray(o.accounts) ? o.accounts : [];
+  o.tx = Array.isArray(o.tx) ? o.tx : [];
+  if(!Array.isArray(o.accountTypes) || !o.accountTypes.length) o.accountTypes = base.accountTypes;
+  if(!o.categories || typeof o.categories !== 'object') o.categories = {};
+  if(!o.tags       || typeof o.tags       !== 'object') o.tags = {};
+  if(!o.settings   || typeof o.settings   !== 'object') o.settings = {};
+  /* v1.2.8：账户高亮 id 数组（settings.acctHl，沿用既有约定 v1.1.14 的键名）。
+     旧备份没有这一项 / 里面有脏值，一律收成合法字符串数组，避免旧数据一进来就炸。 */
+  o.settings.acctHl = Array.isArray(o.settings.acctHl)
+    ? o.settings.acctHl.filter(x => typeof x === 'string' && x) : [];
+  if(!o.meta       || typeof o.meta       !== 'object') o.meta = {};
+  delete o.settings.backup;
+  delete o.settings.nutstore;
+  delete o.nutstore;
+  o.tx.forEach((t, i) => { if(!t || !t.id) o.tx[i] = Object.assign({id:'i' + i + '_' + Math.random().toString(36).slice(2,6)}, t || {}); });
+  o.accounts.forEach((a, i) => { if(!a || !a.id) o.accounts[i] = Object.assign({id:'a' + i + '_' + Math.random().toString(36).slice(2,6)}, a || {}); });
+  return o;
+}
+let DB = (() => {
+  const saved = readJSON(DB_KEY, null);
+  if(saved){ try { return normalizeDB(saved); } catch(e){ /* 坏了就退回空数据 */ } }
+  const d = normalizeDB(EMPTY_DB);
+  const legacy = readJSON('amhub_v100_added', []);
+  if(Array.isArray(legacy) && legacy.length) d.tx = legacy;
+  const cfg = readJSON('amhub_v100_config', null);
+  if(cfg && typeof cfg === 'object'){
+    if(cfg.categories) d.categories = Object.assign({}, d.categories, cfg.categories);
+    if(cfg.tags)       d.tags       = Object.assign({}, d.tags, cfg.tags);
+  }
+  return d;
+})();
+function persistDB(){
+  try { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
+  catch(e){ toast('本机存储不可用，改动仅本次有效'); }
+}
+
+const TYPE_NAME  = {expense:'支出',income:'收入',transfer:'转账',repay:'还款',reimburse:'报销'};
+const TYPE_BADGE = {expense:'支',income:'收',transfer:'转',repay:'还',reimburse:'报'};
+const isMove = t => t === 'transfer' || t === 'repay';
+const n = v => Number(v) || 0;
+const r2 = v => Math.round((Number(v) + Number.EPSILON) * 100) / 100;
+const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
+const num = v => { const s = r2(v).toFixed(2).replace(/\.?0+$/, ''); return (s === '-0' || s === '') ? '0' : s; };
+const money = v => r2(v).toFixed(2);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---- 沿用既有口径（v1.1.22） ---- */
+function netOut(t){ return r2(n(t.amount) - n(t.discount) - n(t.cashback)); }      /* 原价 − 优惠 − 返现 */
+function outOf(t){ return r2(n(t.amount) - n(t.off)); }                            /* 支出账户实际被扣 */
+function recvOf(t){                                                                /* 到账（兼容旧 recv 字段） */
+  if(!t.to) return 0;
+  const v = t.recv;
+  return (v === null || v === undefined || v === '') ? r2(n(t.amount)) : r2(n(v));
+}
+function reimNet(t){ return r2(n(t.reimbursed) - n(t.fee)); }                     /* 报销净回款 */
+/* v1.3.2：转账 / 还款 / 报销 要「支出账户 + 收入账户」两端才讲得清方向；缺一端时
+   流水条不再显示「支出→到账」区间（退化为单值）。v1.3.3 起同一张表也用于流水条高亮。 */
+const NEED_BOTH = {transfer:true, repay:true, reimburse:true};
+/* v1.3.3：这条流水是否「未填写完整账户」。
+   支出账户**不是必填项** —— 只填一端是合法业务状态，所以不在记账表单里催用户补齐；
+   只在流水条上做事后提醒。判定只读记录自身的 from / to，不写 localStorage、不设本机
+   状态：备份 / 导出 / 云恢复换到另一台设备，同一条记录照样高亮。 */
+function lackOf(t){ return !!NEED_BOTH[t.type] && (!t.from || !t.to); }
+/* v1.3.2：支出账户实际被扣 —— 与 balanceOf() 的借方逐项一致：
+   −(amount − off) + discount + cashback = −(amount − off − discount − cashback)。
+   旧版流水条拿 outOf()（只减 off）当支出侧，优惠 10 的还款 40 会显示成「40→50」。 */
+function paidOf(t){ return r2(n(t.amount) - n(t.off) - n(t.discount) - n(t.cashback)); }
+function diffOf(t){
+  if(!isMove(t.type)) return 0;
+  if(!t.from && t.to) return recvOf(t);
+  return r2(recvOf(t) - outOf(t));
+}
+/* 单笔对净资产的净影响，用于「支出 / 收入 / 结余」汇总 */
+function deltaOf(t){
+  switch(t.type){
+    case 'expense':   return r2(-netOut(t));
+    case 'income':    return r2(n(t.amount) + n(t.discount) + n(t.cashback));
+    case 'transfer':
+    case 'repay':     return r2(diffOf(t) + n(t.discount) + n(t.cashback));
+    case 'reimburse': return r2(reimNet(t) - netOut(t));
+    default:          return 0;
+  }
+}
+function summaryOf(rows){
+  let inc = 0, exp = 0;
+  rows.forEach(t => { const d = deltaOf(t); if(d >= 0) inc = r2(inc + d); else exp = r2(exp - d); });
+  return {exp, inc, bal:r2(inc - exp)};
+}
+/* v1.3.4：「不计入」——只有支出 / 收入可标记（用户 2026-11-11 确认）。
+   剔除范围只有月 / 日的「支出·收入·结余」三格；账户余额 balanceOf() 照常按真实
+   资金增减，资产页三张卡片也一分不动。
+   标记写进记录自身的 noCount，随 dataForSync() 深拷贝进本地备份 / 导出 / 坚果云，
+   换设备恢复后同一笔照样不计入 —— 不写本机状态、不需要迁移旧备份：
+   老记录没有这个字段时恒为计入，读侧兜底即可。 */
+const NO_COUNT_TYPES = {expense:true, income:true};
+function counted(t){ return !(NO_COUNT_TYPES[t.type] && !!t.noCount); }
+function statsRows(rows){ return rows.filter(counted); }
+function kpiHTML(s){
+  return '<span>支出' + (s.exp > 0 ? '-' : '') + num(s.exp) + '</span>'
+       + '<span>收入+' + num(s.inc) + '</span>'
+       + '<span>结余' + num(s.bal) + '</span>';
+}
+/* 账户余额：与旧版 balanceOf 同口径，按账户 id 优先、名称兜底 */
+function balanceOf(a){
+  let b = n(a.opening);
+  const hit = (t, side) => {
+    const rid = t[side + 'Id'] || '';
+    return rid ? rid === a.id : (t[side] || '') === a.name;
+  };
+  for(const t of DB.tx){
+    if(t.type === 'expense' && hit(t,'from')){ b -= n(t.amount); b += n(t.discount) + n(t.cashback); }
+    else if(t.type === 'income' && hit(t,'to')){ b += n(t.amount) + n(t.discount) + n(t.cashback); }
+    else if(isMove(t.type)){
+      if(hit(t,'from')){ b -= outOf(t); b += n(t.discount) + n(t.cashback); }
+      if(hit(t,'to')){ b += recvOf(t); }
+    }
+    else if(t.type === 'reimburse'){
+      if(hit(t,'from')){ b -= n(t.amount); b += n(t.discount) + n(t.cashback); }
+      if(hit(t,'to')){ b += reimNet(t); }
+    }
+  }
+  return r2(b);
+}
+
+/* ---- 状态 ---- */
+const LAST_DATE = DB.tx.map(t => t.date).filter(Boolean).sort().slice(-1)[0] || todayISO();
+/* v1.3.7：S.tab 多出 'overview'，且作为开屏页的默认值（用户要求「总览设为开屏页」）。 */
+/* v1.4.0：v1.3.9 的「当前指标」状态位一并删除 —— 总览页不再分层，
+   三块本年网格与卡片同属一页，没有「当前在看哪个指标」这种状态可记。 */
+const S = {date:LAST_DATE, month:LAST_DATE.slice(0,7), tab:'overview'};
+const $ = id => document.getElementById(id);
+const pad2 = x => String(x).padStart(2,'0');
+const daysInMonth = m => new Date(Number(m.slice(0,4)), Number(m.slice(5,7)), 0).getDate();
+const monthLabel = m => m.slice(2,4) + '年' + Number(m.slice(5,7)) + '月';
+const dateLabel = d => Number(d.slice(5,7)) + '月' + Number(d.slice(8,10)) + '日';
+const shiftDate = (d, k) => {
+  const dt = new Date(d + 'T00:00:00');
+  dt.setDate(dt.getDate() + k);
+  return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate());
+};
+const shiftMonth = (m, k) => {
+  const dt = new Date(Number(m.slice(0,4)), Number(m.slice(5,7)) - 1 + k, 1);
+  return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1);
+};
+function setDate(d){
+  S.date = d;
+  S.month = d.slice(0,7);
+  $('datePicker').value = d;
+  renderAll();
+}
+function setMonth(m){
+  const day = Math.min(Number(S.date.slice(8,10)), daysInMonth(m));
+  setDate(m + '-' + pad2(day));
+}
+
+/* ---- 渲染 ---- */
+function renderAll(){ renderHead(); renderDays(); renderFlow(); }
+
+function renderHead(){
+  $('monthLabel').textContent = monthLabel(S.month);
+  $('dateLabel').textContent = dateLabel(S.date);
+  $('datePicker').value = S.date;
+  $('monthKpi').innerHTML = kpiHTML(summaryOf(statsRows(DB.tx.filter(t => t.date.slice(0,7) === S.month))));
+  $('dayKpi').innerHTML = kpiHTML(summaryOf(statsRows(DB.tx.filter(t => t.date === S.date))));
+}
+
+function renderDays(){
+  const total = daysInMonth(S.month);
+  const withData = new Set(DB.tx.filter(t => t.date.slice(0,7) === S.month).map(t => Number(t.date.slice(8,10))));
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + pad2(today.getMonth() + 1) + '-' + pad2(today.getDate());
+  let html = '';
+  for(let d = 1; d <= total; d++){
+    const iso = S.month + '-' + pad2(d);
+    const cls = ['day'];
+    if(withData.has(d)) cls.push('has');
+    if(iso === S.date) cls.push('sel');
+    if(iso === todayStr) cls.push('today');
+    html += '<button class="' + cls.join(' ') + '" data-day="' + d + '"'
+          + ' title="' + iso + (withData.has(d) ? '（有流水）' : '') + '">' + d + '</button>';
+  }
+  $('days').innerHTML = html;
+  $('days').querySelectorAll('[data-day]').forEach(b => {
+    b.addEventListener('click', () => setDate(S.month + '-' + pad2(Number(b.dataset.day))));
+  });
+}
+
+/* 调整项明细：立减(off)按第八版要求算进优惠，不单列「立减+」。金额口径本身不变。
+   第九版：不再各自成块、不再用 3px 间距，改为用「|」连接成一整串且绝不折行。 */
+function adjustParts(t){
+  const p = [];
+  const disc = r2(n(t.discount) + n(t.off));
+  if(disc)            p.push('优惠+' + num(disc));
+  if(n(t.cashback))   p.push('返现+' + num(t.cashback));
+  if(n(t.fee))        p.push('手续费-' + num(t.fee));
+  if(n(t.reimbursed)) p.push('回款+' + num(t.reimbursed));
+  return p;
+}
+const adjustText = t => adjustParts(t).join('|');
+function piece(txt, cls){
+  return '<span class="piece' + (cls ? ' ' + cls : '') + '">' + esc(txt) + '</span>';
+}
+/* 名义金额 → 实际金额（只在有差异时显示箭头）
+   v1.3.2：转账 / 还款 的两端改成「支出账户实际被扣」→「收入账户实际到账」，
+   优惠 / 返现 / 手续费只在各自那一端体现，不再堆到到账侧：
+   还款 40、优惠 10 → 30→40（旧版 40→50，把优惠算成了到账变多）。 */
+function amountPair(t){
+  switch(t.type){
+    case 'expense':   return [n(t.amount), netOut(t)];
+    case 'income':    return [n(t.amount), r2(n(t.amount) + n(t.discount) + n(t.cashback))];
+    case 'transfer':
+    case 'repay':     return [paidOf(t), recvOf(t)];
+    case 'reimburse': return [netOut(t), reimNet(t)];
+    default:          return [n(t.amount), n(t.amount)];
+  }
+}
+function amountText(t, eff){
+  if(t.type === 'expense') return '-' + money(eff);
+  if(t.type === 'income')  return '+' + money(eff);
+  return money(eff);
+}
+/* 流水条两行内容（v1.0.0 第九版）
+   第一行左：分类 | 3px | 调整项串（用「|」连接、单行不折行）
+     —— 支出有真实分类，只显示分类；收入/报销/还款/转账没有分类时补类型名，有 category 优先。
+   第二行左：时间 | 3px | 备注 —— 备注位只取 t.note，不回退分类/标签/类型名。
+   两行首块等宽对齐，故「分类↔时间」「调整项↔备注」左边缘各自对齐；时间颜色与正文统一。
+   右列两行共用一列：第一行「标签 | 金额」（v1.3.5 起），第二行只有账户。
+   第九版：标签取消黑框、从金额前移到账户前；整行可点击修改 / 删除。
+   v1.3.1：带标签时右列曾拆成两个固定槽（.tag / .acct，槽宽按本日文本量出）。
+   v1.3.5：标签移回金额前、随金额长度浮动（自适应金额长度），两槽与测量函数一并停用；
+   无标签行仍是原来的单串、一个字节都不变。 */
+function rowHTML(t){
+  const title = TYPE_NAME[t.type] || '流水';
+  const cat = t.category || (t.type === 'expense' ? '' : title);
+  const adj = adjustText(t);
+  const l1 = (cat ? [piece(cat, 'cat')] : []).concat(adj ? [piece(adj, 'adj')] : []).join('');
+  const note = t.note || '';
+  /* v1.3.4：被标记不计入的支出 / 收入，备注后补一枚灰字小标（显示为「不计入」）。
+     只在标记时新增一个 piece，普通行 DOM 与 v1.3.3 逐字节一致。 */
+  const nc = (NO_COUNT_TYPES[t.type] && t.noCount) ? piece('不计入', 'nc') : '';
+  const l2 = (t.time ? [piece(t.time, 'sub')] : []).concat(note ? [piece(note, 'note')] : []).concat(nc ? [nc] : []).join('');
+  const acct = (t.from && t.to) ? (t.from + '→' + t.to) : (t.from || t.to || '');
+  const [nom, eff] = amountPair(t);
+  /* v1.3.2：转账 / 还款 / 报销 只有两端账户都填了才显示「支出→到账」区间。
+     缺一端时只显示单值 —— 有支出账户给被扣额，只有收入账户给到账额，
+     旧版在缺支出账户时会把支出侧算成 0，渲染出「0→500」这种半截区间。 */
+  const twoSided = !NEED_BOTH[t.type] || !!(t.from && t.to);
+  /* v1.3.3：缺账户的流水条目挂 .lack（左侧红条 + 红徽标 + 账户位红字）。
+     判定来自记录本身，不来自 UI 状态，故跨设备一致。 */
+  const lack = lackOf(t);
+  const changed = twoSided && Math.abs(eff - nom) >= 0.005;
+  const single = NEED_BOTH[t.type] ? ((t.from || !t.to) ? nom : eff) : eff;
+  const amt = changed ? (num(nom) + '→' + num(eff)) : amountText(t, single);
+  /* v1.3.5：标签移到第一行金额前，形成「标签|金额」连续串，整串随右列右对齐。
+     金额不设上限、不省略，金额多长标签就紧贴金额左缘左右浮动 ——「自适应金额长度」；
+     不再像 v1.3.1 那样用固定槽宽把标签左缘钉在同一竖线。标签沿用 5.5em 省略上限防撑爆。
+     有标签才加 .has-tag；无标签行保持 v1.3.0 原串、DOM 与几何逐字节不变。
+     第二行右列无论有无标签都回归纯账户单串（不再拆 .tag / .acct 两槽）。 */
+  const r1 = t.tag
+    ? '<span class="r has-tag" title="标签与金额"><span class="tag" title="标签">' + esc(t.tag)
+        + '</span><span class="sep">|</span><span class="amt">' + esc(amt) + '</span></span>'
+    : '<span class="r" title="该笔金额"><span class="amt">' + esc(amt) + '</span></span>';
+  const r2 = '<span class="r" title="账户">' + esc(acct) + '</span>';
+  return '<div class="flow-row' + (lack ? ' lack' : '') + '" data-id="' + esc(t.id)
+    + '" title="' + (lack ? '该笔未填写完整账户，点击修改或删除' : '点击修改或删除') + '">'
+    +   '<span class="badge" title="' + title + (lack ? '（未填写完整账户）' : '') + '">'
+    + (TYPE_BADGE[t.type] || '·') + '</span>'
+    +   '<div class="body">'
+    +     '<div class="line line1">'
+    +       '<span class="l">' + l1 + '</span>'
+    +       r1
+    +     '</div>'
+    +     '<div class="line line2">'
+    +       '<span class="l">' + l2 + '</span>'
+    +       r2
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
+}
+/* 资产页汇总：按 accountTypes.mode 把账户分成资产账户 / 信贷账户两组 */
+function assetSummary(){
+  const modes = Object.fromEntries(DB.accountTypes.map(x => [x.id, x.mode]));
+  let asset = 0, credit = 0;
+  for(const a of DB.accounts){
+    const b = balanceOf(a);
+    if(modes[a.kind] === 'credit') credit = r2(credit + b);
+    else asset = r2(asset + b);
+  }
+  return {asset, credit, total:r2(asset + credit), modes};
+}
+/* 顶部三张卡片：总资产 | 资产账户金额 | 信贷账户（金额一律两位小数） */
+function renderAssetCards(){
+  const s = assetSummary();
+  const card = (lab, val) => '<div class="card"><span class="lab">' + lab + '</span><span class="val">' + money(val) + '</span></div>';
+  $('assetSummary').innerHTML = card('总资产', s.total) + card('资产账户金额', s.asset) + card('信贷账户', s.credit);
+}
+/* 账户列表：资产账户 / 信贷账户分开；信贷账户每行下方补「已用/额度」与「可用」 */
+function renderAssets(){
+  const s = assetSummary();
+  const groups = {asset:[], credit:[]};
+  for(const a of DB.accounts){
+    const bal = balanceOf(a);
+    const item = {id:a.id, name:a.name, bal:bal, used:r2(Math.max(0, -bal)), limit:n(a.limit), kind:a.kind || 'asset'};
+    groups[s.modes[item.kind] === 'credit' ? 'credit' : 'asset'].push(item);
+  }
+  /* v1.2.8：两组各自按「名称字数」升序自动排序。只改显示顺序 ——
+     DB.accounts 的存储顺序、备份导出内容、设置页、余额与汇总口径全部不动：
+       资产账户：字少的在前；同字数时资产（余额）少的在前；
+       信贷账户：字少的在前；同字数时已用金额（-余额，负数取 0）少的在前；
+     字数与金额都相同的保持数组原有先后（Array.prototype.sort 是稳定排序）。 */
+  groups.asset.sort((a, b) => (charLen(a.name) - charLen(b.name)) || (a.bal - b.bal));
+  groups.credit.sort((a, b) => (charLen(a.name) - charLen(b.name)) || (a.used - b.used));
+  /* 账户删掉后，指向它的高亮 id 一并清掉（写回数据），换设备恢复时不会带回死 id */
+  const alive = new Set(DB.accounts.map(a => a.id));
+  const hl = hlIds();
+  const keep = hl.filter(id => alive.has(id));
+  if(keep.length !== hl.length){ DB.settings.acctHl = keep; persistDB(); }
+  const row = (name, val, cls) =>
+    '<div class="asset-row' + (cls ? ' ' + cls : '') + '"><span>' + esc(name) + '</span><span>' + money(r2(val)) + '</span></div>';
+  const head = name => '<div class="asset-row group"><span>' + name + '</span><span>余额</span></div>';
+  /* 账户行整体可点击：data-acct 供事件委托定位 */
+  const item = (x, credit) => {
+    let h = '<div class="asset-item' + (credit ? ' credit' : '') + (isHl(x.id) ? ' hl' : '')
+          + '" data-acct="' + esc(x.id) + '" title="点击修改账户，长按高亮">'
+          + '<div class="asset-row"><span>' + esc(x.name) + '</span><span>' + money(x.bal) + '</span></div>';
+    if(credit){
+      const used = x.used;
+      const hasLimit = x.limit > 0;
+      h += '<div class="credit-meta"><span>已用' + money(used) + '/' + (hasLimit ? money(x.limit) : '未设额度') + '</span>'
+         + '<span>' + (hasLimit ? '可用' + money(r2(x.limit - used)) : '可用—') + '</span></div>';
+    }
+    return h + '</div>';
+  };
+  /* v1.4.3：「+ 新增账户」已上移到顶栏第六格，资产页内不再有自己的工具条，
+     列表直接从「资产账户」分组开始（.asset-tools 的样式保留，本版起不再被引用）。 */
+  let html = '<div class="asset-list">';
+  if(!DB.accounts.length) html += '<div class="asset-empty">暂无账户，点顶栏「+ 新增账户」或导入备份</div>';
+
+  html += '<div class="asset-group">' + head('资产账户');
+  for(const x of groups.asset) html += item(x, false);
+  html += row('资产账户合计', s.asset, 'subtotal') + '</div>';
+
+  html += '<div class="asset-group">' + head('信贷账户');
+  for(const x of groups.credit) html += item(x, true);
+  html += row('信贷账户合计', s.credit, 'subtotal') + '</div>';
+
+  html += '</div>';
+  return html;
+}
+/* v1.3.1 的槽宽测量逻辑（按本日文本量出两个固定槽宽）已在 v1.3.5 停用：
+   标签移到第一行金额前、随金额长度浮动，第二行账户回归纯右对齐单串。
+   保留本注释仅为历史可追溯，测量函数与其调用一并移除。 */
+/* ---------- v1.4.0：总览页直出三块本年网格（每块三行 / 格子 6 列） ----------
+   只做「取数 + 排版」，不引入任何新的统计口径：
+     · 资产组三张卡 = assetSummary()（与资产页同一个函数，一分不差）；
+     · 本月组三张卡 = monthStats(S.month)（与日历抬头那三格同源，
+       v1.3.4 的「不计入」支出 / 收入照旧由 statsRows 先剔除）；
+     · 本年三块 = heatData()：12 个月逐月调 monthStats，本年合计 = 12 个月逐项 r2 累加，
+       **不另立年口径**（年结余＝各月结余之和＝年收入−年支出）。
+   沿革：v1.3.8「三切换键共用一个 12 月格」→ v1.3.9「hub 三入口卡 + 三个独立页」
+   → v1.3.10 三块同时直出在总览页 → 本版把每块改成三行、格子由 5 列改 6 列。
+   三块由同一个 ovBlockHTML(k) 产出，块结构逐字相同，只有指标名与金额不同。
+   沿用：不要热力深浅、只显示金额、月份格纯展示不可点。
+   金额一律 money() 两位小数，与资产页卡片同一套位数。 */
+/* v1.4.3：总览里「结余 / 收入 / 支出」三类金额一律带正负号（用户要求）。
+   支出在数据层是绝对额（各笔 amount 之和），显示时加负号，
+   于是「收入 + 支出 = 结余」这条关系在界面上直接成立；
+   结余 / 收入按数值正负取号。0 既非正也非负，不加号（仍显示 0.00）。
+   只作用于总览页的三张本月卡与三块本年网格；账单页日历 / 日期条的 KPI
+   沿用 v1.3.8 的 kpiHTML()，不在本次改动范围内。 */
+function signedMoney(kind, v){
+  const x = r2(v), a = money(Math.abs(x));
+  if(x === 0) return a;
+  return (kind === 'exp' ? (x > 0 ? '-' : '+') : (x > 0 ? '+' : '-')) + a;
+}
+const OV_METRICS = {bal:'结余', inc:'收入', exp:'支出'};
+const monthStats = key => summaryOf(statsRows(DB.tx.filter(t => t.date.slice(0,7) === key)));
+function heatData(){
+  const year = S.month.slice(0,4);
+  const months = [], yearSum = {bal:0, inc:0, exp:0};
+  for(let mo = 1; mo <= 12; mo++){
+    const s = monthStats(year + '-' + String(mo).padStart(2,'0'));
+    months.push({mo:mo, bal:s.bal, inc:s.inc, exp:s.exp});
+    yearSum.bal = r2(yearSum.bal + s.bal);
+    yearSum.inc = r2(yearSum.inc + s.inc);
+    yearSum.exp = r2(yearSum.exp + s.exp);
+  }
+  return {year:year, months:months, yearSum:yearSum};
+}
+const ovCell = (lab, val, kind) => '<div class="ov-cell">'
+  + '<span class="ov-mo">' + esc(lab) + '</span>'
+  + '<span class="ov-val">' + signedMoney(kind, val) + '</span></div>';
+/* 三块共用的唯一渲染入口：k = bal / inc / exp，d 可传入复用（省掉重复的 12 月取数）。
+   块结构 = 三行：第一行「年份 | 本年X 合计」，第二行 1~6 月，第三行 7~12 月。
+   12 个格子交给 6 列网格自动折成两行，不再有占 3 列的「本年」格 ——
+   它的合计金额上提到第一行（v1.4.3 起三类合计与 12 格金额一律带正负号）。
+   三块逐字相同，只有指标名与金额不同；月份格没有 data-*，纯展示不可点。
+   不带 id —— 三块同时存在于同一页，id 必须唯一，故定位一律走 class / data-ov-kind。 */
+function ovBlockHTML(k, d){
+  if(!d) d = heatData();
+  const yv = r2(d.yearSum[k]);
+  const sum = signedMoney(k, yv);
+  let g = '';
+  for(const m of d.months) g += ovCell(m.mo, m[k], k);
+  return '<div class="ov-heat" data-ov-kind="' + k + '">'
+       + '<div class="ov-heat-head">'
+       + '<span class="ov-heat-year">' + d.year + ' 年</span>'
+       + '<i class="ov-sep">|</i>'
+       + '<span class="ov-heat-title">本年' + OV_METRICS[k] + '</span>'
+       + '<span class="ov-heat-sum">' + sum + '</span>'
+       + '</div>'
+       + '<div class="ov-heat-grid">' + g + '</div></div>';
+}
+function renderOverview(){
+  const s = assetSummary();
+  const m = monthStats(S.month);
+  const d = heatData();
+  /* v1.4.3：本月三卡带正负号（支出取负、收入与结余按数值正负），
+     资产三卡是余额性质，仍按绝对值显示、不加号。 */
+  const card = (lab, val, kind) => '<div class="card"><span class="lab">' + lab + '</span>'
+       + '<span class="val">' + (kind ? signedMoney(kind, val) : money(val)) + '</span></div>';
+  /* 三块本年网格直接跟在「本月」三卡后面，与卡片一起随流水区滚动；
+     heatData() 只算一次，三块共用同一份 d（不必各自重跑 12 次月取数）。 */
+  return '<div class="asset-summary ov-cards">'
+       + card('总资产', s.total) + card('资产账户', s.asset) + card('信贷账户', s.credit)
+       + '</div>'
+       + '<div class="asset-summary ov-cards">'
+       + card('本月支出', m.exp, 'exp') + card('本月收入', m.inc, 'inc') + card('本月结余', m.bal, 'bal')
+       + '</div>'
+       + ovBlockHTML('bal', d) + ovBlockHTML('inc', d) + ovBlockHTML('exp', d);
+}
+function renderFlow(){
+  $('tabOv').classList.toggle('active', S.tab === 'overview');
+  $('tabBill').classList.toggle('active', S.tab === 'bill');
+  $('tabAsset').classList.toggle('active', S.tab === 'asset');
+  const isAsset = S.tab === 'asset';
+  const isOv = S.tab === 'overview';
+  /* 资产页删掉上方的日历卡片与账单日期条，换成三张汇总卡片；
+     v1.3.7 总览页同样不显示日历 / 日期条，且面板里不再放固定汇总条 ——
+     两组卡片跟内容一起渲进 .flow，随流水区滚动。 */
+  $('cal').hidden = isAsset || isOv;
+  $('dateBar').hidden = isAsset || isOv;
+  $('assetSummary').hidden = !isAsset;
+  document.body.classList.toggle('tab-asset', isAsset);   /* v1.2.8：竖屏资产页不滚动 */
+  document.body.classList.toggle('tab-overview', isOv);  /* v1.4.5：总览页去外框 */
+  if(isAsset){ renderAssetCards(); $('flow').innerHTML = renderAssets(); fitFrame(); return; }
+  /* v1.4.0：总览页回到单层 —— 卡片 + 三块本年网格一起渲进 .flow，
+     进页回滚到页顶再量高度（三块比 v1.3.8 的单块长，量高度这步不能省）。 */
+  if(isOv){
+    $('flow').innerHTML = renderOverview();
+    $('flow').scrollTop = 0;
+    fitFrame();
+    return;
+  }
+  const rows = DB.tx.filter(t => t.date === S.date)
+                    .sort((a,b) => (a.time || '').localeCompare(b.time || '') || a.id.localeCompare(b.id));
+  $('flow').innerHTML = rows.length
+    ? '<div class="flow-list">' + rows.map(rowHTML).join('') + '</div>'
+    : '<div class="empty">' + dateLabel(S.date) + ' 无流水</div>';
+  fitFrame();
+}
+/* v1.2.8 需求 2 的兜底：资产页默认「一屏内不滚动」，只有内容真超出时才退回可滚动 ——
+   与其把「总资产」裁在屏幕外，不如允许滑动。转屏 / 改窗口后重新判定一次。 */
+const FLOW_MIN = 220;      /* 固定布局下流水区的最小可用高度（约 4 行流水），低于此值退回整页滚动 */
+function fitFrame(){
+  const f = $('flow');
+  if(!f) return;
+  /* 先在「固定外框」形态下量一次，避免上一轮的 page-scroll 影响判断 */
+  document.body.classList.remove('page-scroll');
+  const tooShort = f.clientHeight < FLOW_MIN;
+  document.body.classList.toggle('page-scroll', tooShort);
+  fitAssetScroll();
+}
+function fitAssetScroll(){
+  const f = $('flow');
+  if(!f) return;
+  if(S.tab !== 'asset' || document.body.classList.contains('page-scroll')){
+    document.body.classList.remove('asset-overflow'); return;
+  }
+  document.body.classList.toggle('asset-overflow', f.scrollHeight - f.clientHeight > 1);
+}
+window.addEventListener('resize', fitFrame);
+window.addEventListener('orientationchange', () => setTimeout(fitFrame, 120));
+
+/* ---- 提示条（占位按钮的唯一反馈，不含任何实际功能） ---- */
+let toastTimer = null;
+function toast(msg){
+  const el = $('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 1600);
+}
+
+/* ---- 记账页：类型选项 / 四行字段 / 数字键盘 / 四则运算 / 再记·保存 ---- */
+const S_ADD = {type:'expense', field:'amount', open:false, mode:'add', editId:null};
+const sheetOpen = () => S_ADD.open;
+const numInput = key => document.querySelector('.keypad-field[data-num="' + key + '"]');
+
+/* v1.2.7：记账页四类选项（分类 / 标签 / 支出账户 / 收入账户）一律按字数由少到多排，
+   字少的在上、字多的在下，短标签不再被长标签挤到列表深处。
+   字数＝字符个数（[...s].length，中文一字算一，也兼容生僻字/符号的代理对）；
+   同字数的保持原有先后（先比长度再比原下标，等价于稳定排序）。
+   只改「发给页面的显示顺序」：DB.categories / DB.tags 的原顺序与设置页一字不动，
+   备份导出、设置页增删改的位置都不受本改动影响。 */
+const charLen = s => [...String(s)].length;
+function byCharLen(list){
+  return list.map((v, i) => ({v:v, i:i}))
+             .sort((a, b) => (charLen(a.v) - charLen(b.v)) || (a.i - b.i))
+             .map(x => x.v);
+}
+function fillSelect(id, list){
+  $(id).innerHTML = '<option value=""></option>'
+    + byCharLen(list).map(x => '<option value="' + esc(x) + '">' + esc(x) + '</option>').join('');
+}
+/* 历史流水的分类/标签/账户可能已被设置页删掉；回填时若不在选项里就临时补一项，避免丢值 */
+function setSelectValue(id, v){
+  const el = $(id);
+  if(!v){ el.value = ''; return; }
+  if(![...el.options].some(o => o.value === v)){
+    /* v1.2.7：临时补的项（旧分类 / 已删账户）也得守住「字少在上」，
+       插到第一个字数更多的选项之前，而不是直接堆到末尾 */
+    const nv = charLen(v);
+    const opt = '<option value="' + esc(v) + '">' + esc(v) + '</option>';
+    const after = [...el.options].slice(1).find(o => charLen(o.value) > nv);
+    if(after) after.insertAdjacentHTML('beforebegin', opt);
+    else el.insertAdjacentHTML('beforeend', opt);
+  }
+  el.value = v;
+}
+const putNum = (k, v) => { numInput(k).value = v ? num(v) : ''; };
+
+function openSheet(){          /* 新增模式 */
+  closeSettings(); closeAccount();
+  forceWhiteBarsSoon();
+  S_ADD.open = true; S_ADD.mode = 'add'; S_ADD.editId = null;
+  $('sheetTitle').textContent = '记一笔';
+  $('btnAgain').textContent = '再记';
+  $('btnSave').textContent = '保存';
+  hideDelConfirm();
+  $('fDate').value = S.date;
+  $('fDateBtn').textContent = dateLabel(S.date);
+  fillSelect('fFrom', DB.accounts.map(a => a.name));
+  fillSelect('fTo',   DB.accounts.map(a => a.name));
+  /* 上一次编辑残留的金额/备注必须清空，否则会串到新增流水 */
+  document.querySelectorAll('.keypad-field').forEach(x => x.value = '');
+  $('fNote').value = '';
+  $('fNoCount').checked = false; updateNoCountBox();
+  setAddType(S_ADD.type);
+  setActiveField(numInput('amount'));
+  $('sheet').classList.add('on');
+  $('sheetMask').classList.add('on');
+}
+function openEdit(id){         /* 编辑模式：复用同一弹层 */
+  const t = DB.tx.find(x => x.id === id);
+  if(!t) return;
+  closeSettings(); closeAccount();
+  forceWhiteBarsSoon();
+  S_ADD.open = true; S_ADD.mode = 'edit'; S_ADD.editId = id;
+  $('sheetTitle').textContent = '修改流水';
+  $('btnAgain').textContent = '删除';
+  $('btnSave').textContent = '保存修改';
+  hideDelConfirm();
+  $('fDate').value = t.date;
+  $('fDateBtn').textContent = dateLabel(t.date);
+  fillSelect('fFrom', DB.accounts.map(a => a.name));
+  fillSelect('fTo',   DB.accounts.map(a => a.name));
+  setAddType(t.type);
+  setSelectValue('fCategory', t.category || '');
+  setSelectValue('fTag', t.tag || '');
+  if(!$('fFrom').disabled) setSelectValue('fFrom', t.from || '');
+  if(!$('fTo').disabled)   setSelectValue('fTo', t.to || '');
+  /* 优惠框回填显示层的合并值(discount+off)，保存时再拆回，保证与流水条一致 */
+  putNum('amount', n(t.amount));
+  putNum('discount', r2(n(t.discount) + n(t.off)));
+  putNum('cashback', n(t.cashback));
+  putNum('fee', n(t.fee));
+  putNum('reimbursed', n(t.reimbursed));
+  $('fNote').value = t.note || '';
+  $('fNoCount').checked = !!(NO_COUNT_TYPES[t.type] && t.noCount);
+  updateNoCountBox();                       /* 必须在 setAddType 之后：非支出/收入会被联动清零 */
+  setActiveField(numInput('amount'));
+  $('sheet').classList.add('on');
+  $('sheetMask').classList.add('on');
+}
+function closeSheet(){
+  forceWhiteBarsSoon();
+  S_ADD.open = false;
+  hideDelConfirm();
+  $('sheet').classList.remove('on');
+  $('sheetMask').classList.remove('on');
+}
+/* 类型联动规则（用户 2026-11-09 第八版）：
+   支出＝分类+标签，禁用收入账户；收入＝只标签，禁用支出账户；
+   报销＝只标签；还款/转账＝分类与标签都不设。 */
+const TYPE_RULE = {
+  expense:   {cat:true,  tag:true,  from:true,  to:false},
+  income:    {cat:false, tag:true,  from:false, to:true},
+  reimburse: {cat:false, tag:true,  from:true,  to:true},
+  transfer:  {cat:false, tag:false, from:true,  to:true},
+  repay:     {cat:false, tag:false, from:true,  to:true}
+};
+/* v1.3.4：勾选框选中时给外框加 .on，纯视觉；checkbox 自身仍是唯一数据源。 */
+function updateNoCountBox(){
+  $('fNoCountBox').classList.toggle('on', !!$('fNoCount').checked);
+}
+function applyTypeRule(tp){
+  const r = TYPE_RULE[tp] || TYPE_RULE.expense;
+  $('fCatItem').hidden = !r.cat;
+  $('fTagItem').hidden = !r.tag;
+  $('fFrom').disabled = !r.from;
+  $('fTo').disabled   = !r.to;
+  if(!r.from) $('fFrom').value = '';
+  if(!r.to)   $('fTo').value = '';
+  /* 第一行可见字段数决定等分列数，隐藏后不留空格子 */
+  const visible = [...$('rowMain').querySelectorAll('.fitem')].filter(x => !x.hidden).length;
+  $('rowMain').style.gridTemplateColumns = 'repeat(' + visible + ',minmax(0,1fr))';
+  /* v1.3.4：「不计入」只对支出 / 收入开放。切到其它类型时隐藏并清掉勾选，
+     避免一次隐藏的勾选状态串到转账 / 还款 / 报销上。 */
+  const ncOn = !!NO_COUNT_TYPES[tp];
+  $('fNoCountItem').hidden = !ncOn;
+  $('noteLine').classList.toggle('no-nc', !ncOn);
+  if(!ncOn) $('fNoCount').checked = false;
+  updateNoCountBox();
+}
+function setAddType(tp){
+  S_ADD.type = tp;
+  $('typeRow').querySelectorAll('[data-type]').forEach(b => b.classList.toggle('active', b.dataset.type === tp));
+  applyTypeRule(tp);
+  fillSelect('fCategory', DB.categories[tp] || []);
+  fillSelect('fTag', DB.tags[tp] || []);
+  updateExpr();
+}
+function setActiveField(el){
+  if(!el) return;
+  document.querySelectorAll('.keypad-field').forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  S_ADD.field = el.dataset.num;
+  updateExpr();
+}
+/* 表达式求值：先严格白名单，再交给 Function 保证四则优先级正确 */
+function calcExpr(src){
+  const s = String(src || '').replace(/×/g, '*').replace(/÷/g, '/');
+  if(!s) return 0;
+  if(!/^[\d.+\-*/]+$/.test(s)) return NaN;
+  try {
+    const v = Function('"use strict";return (' + s + ')')();
+    return (typeof v === 'number' && isFinite(v)) ? r2(v) : NaN;
+  } catch(e){ return NaN; }
+}
+function updateExpr(){
+  const el = numInput(S_ADD.field);
+  const raw = el ? el.value : '';
+  const v = calcExpr(raw);
+  const lab = el ? el.closest('.fitem').querySelector('.flab').textContent : '金额';
+  $('exprLine').textContent = lab + '　' + (raw || '0') + ' = ' + (isNaN(v) ? '—' : num(v));
+}
+function keyInput(k){
+  const el = numInput(S_ADD.field);
+  if(!el) return;
+  let s = el.value;
+  if(k === 'del') s = s.slice(0, -1);
+  else if(/^[0-9.]$/.test(k)) s += k;
+  else if(/^[+\-×÷]$/.test(k)){
+    if(!s || /[+\-×÷]$/.test(s)) return;   /* 运算符不能开头，也不能连续 */
+    s += k;
+  }
+  el.value = s;
+  updateExpr();
+}
+/* v1.3.2：物理键盘输入（Linux AppImage / 桌面浏览器）。
+   金额框是 readonly + 页面自带数字键盘，桌面上敲数字原本一点反应都没有。
+   这里把按键映射进同一套 keyInput()（运算符、表达式求值、活动字段全部复用），
+   不新增第二套记账逻辑。手机端没有物理键盘，等于这条分支不生效。
+   备注框 / 日期框 / 其它真实可编辑控件里的按键一律不劫持。 */
+const SHIFT_OP = {'*':'×', '/':'÷', 'x':'×', 'X':'×'};
+function handleSheetKey(e){
+  if(e.ctrlKey || e.metaKey || e.altKey) return false;
+  if(e.target && e.target.id === 'fNoCount') return false;   /* v1.3.4：勾选框自管按键，Enter 不抢去保存 */
+  const el = e.target;
+  const tag = el && el.tagName;
+  if(tag === 'TEXTAREA') return false;
+  if(e.key === 'Enter'){                       /* Enter ＝ 保存 / 保存修改 */
+    e.preventDefault();
+    $('btnSave').click();
+    return true;
+  }
+  if(el && el.id === 'fNote') return false;    /* 备注里照常打字 */
+  if(el && tag === 'INPUT' && el.type === 'date') return false;
+  if(el && tag === 'INPUT' && !el.classList.contains('keypad-field')) return false;
+  if(e.key === 'Backspace' || e.key === 'Delete'){ e.preventDefault(); keyInput('del'); return true; }
+  if(/^[0-9]$/.test(e.key) || e.key === '.'){ e.preventDefault(); keyInput(e.key); return true; }
+  if(/^[+\-]$/.test(e.key)){ e.preventDefault(); keyInput(e.key); return true; }
+  if(SHIFT_OP[e.key]){ e.preventDefault(); keyInput(SHIFT_OP[e.key]); return true; }
+  return false;
+}
+function numVal(key){
+  const v = calcExpr(numInput(key) ? numInput(key).value : '');
+  return isNaN(v) ? 0 : v;
+}
+const idOfAccount = nm => { const a = DB.accounts.find(x => x.name === nm); return a ? a.id : ''; };
+/* 表单取值（新增与编辑共用）。编辑时优惠框是「discount+off」的合并显示值，
+   保存时先尽量保留原 off 份额，余下写进 discount，避免出现负优惠、也不动金额口径。 */
+function formValues(orig){
+  const merged = numVal('discount');
+  const off = r2(Math.min(orig ? n(orig.off) : 0, Math.max(0, merged)));
+  const from = $('fFrom').disabled ? '' : $('fFrom').value;
+  const to   = $('fTo').disabled   ? '' : $('fTo').value;
+  return {
+    type:S_ADD.type,
+    date:$('fDate').value || S.date,
+    category:$('fCatItem').hidden ? '' : $('fCategory').value,
+    tag:$('fTagItem').hidden ? '' : $('fTag').value,
+    from, to, fromId:idOfAccount(from), toId:idOfAccount(to),
+    amount:numVal('amount'),
+    discount:r2(Math.max(0, merged - off)),
+    cashback:numVal('cashback'), fee:numVal('fee'), reimbursed:numVal('reimbursed'),
+    note:$('fNote').value.trim(), off,
+    noCount: !!(NO_COUNT_TYPES[S_ADD.type] && $('fNoCount').checked)
+  };
+}
+function collectTx(){
+  const v = formValues(null);
+  if(!v.amount) return null;
+  const now = new Date();
+  return Object.assign({
+    id:'u' + now.getTime() + Math.random().toString(36).slice(2, 6),
+    time:pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
+    other:false, wage:false, recv:null
+  }, v);
+}
+function collectEdit(orig){
+  const v = formValues(orig);
+  if(!v.amount) return null;
+  return Object.assign({}, orig, v);   /* 保留 id / time / recv 等表单里没有的字段 */
+}
+function saveTx(again){
+  const tx = collectTx();
+  if(!tx){ toast('请先输入有效的收支金额'); return; }
+  DB.tx.push(tx);
+  persistDB();
+  /* 再记：清空金额/分类/标签/备注，保留日期、账户、类型，弹层不关 */
+  document.querySelectorAll('.keypad-field').forEach(x => x.value = '');
+  $('fCategory').value = '';
+  $('fTag').value = '';
+  $('fNote').value = '';
+  $('fNoCount').checked = false; updateNoCountBox();
+  updateExpr();
+  if(again){ toast('已记录，可继续记一笔'); return; }
+  closeSheet();
+  S.tab = 'bill';
+  setDate(tx.date);
+  toast('已保存到 ' + dateLabel(tx.date));
+}
+function saveEdit(){
+  const i = DB.tx.findIndex(x => x.id === S_ADD.editId);
+  if(i < 0){ closeSheet(); return; }
+  const tx = collectEdit(DB.tx[i]);
+  if(!tx){ toast('请先输入有效的收支金额'); return; }
+  DB.tx[i] = tx;
+  persistDB();
+  closeSheet();
+  S.tab = 'bill';
+  setDate(tx.date);
+  toast('已修改 ' + dateLabel(tx.date) + ' 的流水');
+}
+function deleteTx(){
+  const id = S_ADD.editId;
+  const i = DB.tx.findIndex(x => x.id === id);
+  if(i < 0){ closeSheet(); return; }
+  const date = DB.tx[i].date;
+  DB.tx.splice(i, 1);
+  persistDB();
+  closeSheet();
+  S.tab = 'bill';
+  setDate(date);
+  toast('已删除该笔流水');
+}
+function showDelConfirm(){ $('delConfirm').hidden = false; }
+function hideDelConfirm(){ $('delConfirm').hidden = true; }
+
+/* ---- 账户新增 / 修改 ---- */
+const ACCT = {open:false, id:null, delArmed:false};
+const acctOpen = () => ACCT.open;
+function closeAccount(){
+  forceWhiteBarsSoon();
+  ACCT.open = false; ACCT.id = null; ACCT.delArmed = false;
+  $('aDel').textContent = '删除账户';
+  $('acctSheet').classList.remove('on');
+  $('acctMask').classList.remove('on');
+}
+/* 账户的 kind 是 accountTypes[].id（旧备份里是随机串），弹层只认 asset/credit 两种 mode */
+const modeOfKind = k => { const x = DB.accountTypes.find(y => y.id === k); return x ? x.mode : (k === 'credit' ? 'credit' : 'asset'); };
+const kindOfMode = m => { const x = DB.accountTypes.find(y => y.mode === m); return x ? x.id : m; };
+function syncAcctLimit(){ $('aLimitItem').hidden = $('aKind').value !== 'credit'; }
+function openAccount(id){
+  forceWhiteBarsSoon();
+  closeSheet(); closeSettings();
+  const a = id ? DB.accounts.find(x => x.id === id) : null;
+  ACCT.open = true; ACCT.id = a ? a.id : null; ACCT.delArmed = false;
+  $('acctTitle').textContent = a ? '修改账户' : '新增账户';
+  $('aDel').textContent = '删除账户';
+  $('aName').value = a ? (a.name || '') : '';
+  $('aKind').value = a ? modeOfKind(a.kind) : 'asset';
+  $('aBalance').value = a ? money(balanceOf(a)) : '0.00';
+  $('aLimit').value = a && n(a.limit) ? String(n(a.limit)) : '';
+  $('aDel').hidden = !a;
+  syncAcctLimit();
+  $('acctSheet').classList.add('on');
+  $('acctMask').classList.add('on');
+}
+/* 「当前余额」直接填目标值：反推期初 = 目标余额 − 流水累计影响，流水一条不动 */
+function saveAccount(){
+  const name = $('aName').value.trim();
+  if(!name){ toast('请输入账户名称'); return; }
+  if(DB.accounts.some(x => x.name === name && x.id !== ACCT.id)){ toast('已存在同名账户'); return; }
+  const bal = Number(String($('aBalance').value).replace(/,/g, ''));
+  if(!isFinite(bal)){ toast('余额格式不正确'); return; }
+  const limRaw = String($('aLimit').value).replace(/,/g, '');
+  const lim = limRaw === '' ? 0 : Number(limRaw);
+  if(!isFinite(lim) || lim < 0){ toast('信用额度格式不正确'); return; }
+  const kind = kindOfMode($('aKind').value);
+  let a = ACCT.id ? DB.accounts.find(x => x.id === ACCT.id) : null;
+  const oldBal = a ? balanceOf(a) : 0;
+  const oldOpening = a ? n(a.opening) : 0;
+  if(!a){
+    a = {id:'a' + Date.now() + Math.random().toString(36).slice(2, 5), opening:0, name:'', kind:'asset', limit:0};
+    DB.accounts.push(a);
+  }
+  a.name = name; a.kind = kind; a.limit = r2(lim);
+  a.opening = r2(bal - (oldBal - oldOpening));
+  closeAccount(); persistDB(); renderAll();
+  toast('账户已保存');
+}
+function deleteAccount(){
+  if(!ACCT.delArmed){ ACCT.delArmed = true; $('aDel').textContent = '再点一次删除'; return; }
+  const i = DB.accounts.findIndex(x => x.id === ACCT.id);
+  if(i >= 0) DB.accounts.splice(i, 1);
+  closeAccount(); persistDB(); renderAll();
+  toast('账户已删除');
+}
+
+/* ---- 手动导入 / 导出 ---- */
+function stamp(){
+  const d = new Date();
+  return String(d.getFullYear()) + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0')
+       + '_' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0');
+}
+/* 导出前剔除一切凭据；坚果云账号 / 应用密码只存在本机 NS 配置里，压根不进 DB */
+function dataForSync(){
+  const o = JSON.parse(JSON.stringify(DB));
+  if(o.settings){ delete o.settings.backup; delete o.settings.nutstore; }
+  delete o.nutstore;
+  o.__app = '资产管理中枢'; o.__ver = 'v1.0.0'; o.__exportedAt = new Date().toISOString();
+  return o;
+}
+/* v1.1.5（v1.1.6 起仅供设置页手动导出）：quiet=true 时静默返回结果名；
+   顶部自动备份已改走 localAutoBackup()，不再调用这个会弹 SAF 的原生桥。 */
+function exportBackup(quiet){
+  const name = '资产管理中枢_备份_' + stamp() + '.json';
+  const json = JSON.stringify(dataForSync(), null, 2);
+  /* APK 内 WebView 不处理 Blob 下载，优先走原生桥 exportBackup(name, json) */
+  if(PNL_NATIVE && PNL_NATIVE.exportBackup){
+    try { PNL_NATIVE.exportBackup(name, json); if(!quiet) toast('备份已导出'); return name; }
+    catch(e){ /* 落回浏览器下载 */ }
+  }
+  try{
+    const blob = new Blob([json], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    if(!quiet) toast('备份已导出：' + name);
+    return name;
+  }catch(e){ if(!quiet) toast('导出失败：' + e.message); return null; }
+}
+function applyDB(d){
+  const next = normalizeDB(d);
+  DB = next;                      /* 本机 NS 配置不在 DB 内，不会被云端覆盖 */
+  persistDB();
+  S.tab = 'bill';
+  const last = DB.tx.map(t => t.date).filter(Boolean).sort().slice(-1)[0] || todayISO();
+  S.date = last; S.month = last.slice(0,7);
+  renderAll();
+  return next;
+}
+function importBackup(file){
+  if(!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try{
+      const d = JSON.parse(String(fr.result));
+      const o = applyDB(d);
+      toast('已导入 ' + o.tx.length + ' 笔流水 / ' + o.accounts.length + ' 个账户');
+    }catch(e){ toast('导入失败：' + e.message); }
+  };
+  fr.onerror = () => toast('读取文件失败');
+  fr.readAsText(file, 'utf-8');
+}
+let clearArmed = false;
+function clearAllData(){
+  if(!clearArmed){ clearArmed = true; toast('再点一次「清空数据」确认'); return; }
+  clearArmed = false;
+  applyDB(JSON.parse(JSON.stringify(EMPTY_DB)));
+  toast('已清空全部账单与资产');
+}
+
+/* ---- 坚果云 WebDAV：安卓走原生桥，桌面走同源 /ns 中转 ---- */
+const NS_DIR = '资产管理中枢';
+const NS_DIR_OLD = '资产管理中枢备份';
+const NS_FILE = 'backup.json';
+const NS_KEY = 'amhub_v100_nutstore';
+const NS_DEFAULT = {user:'',pass:'',path:NS_DIR,keep:30,status:'',last:0};
+const PNL_NATIVE = (window.PnlAndroid && window.PnlAndroid.nsRequest) ? window.PnlAndroid : null;
+/* v1.1.4（v1.1.5 沿用）：真机截图逐行量化后纠正 v1.1.3 的判断 —— 透明导航栏并没有消除黑条，
+   反而让系统只能「从窗口底部内容取色」来决定手势区配色，取到的正是页面紧贴
+   手势区的 --ink 黑色边框（#111），于是稳定画成「黑底 + 浅色手势条」。
+   取证：黑区 y=2320..2373 全宽 RGB(17,17,17) 与 --ink 完全一致；同机状态栏
+   走 statusBarColor 路径保持纯白，只有底部被动态取色，故差异只在手势区。
+   修法三层：① arsc navigationBarColor 改回不透明白，给系统明确的浅色信号；
+   ② dex 在 applySystemBars 里运行时调 Window.setNavigationBarContrastEnforced(false)，
+      关掉系统按内容自动加 scrim / 动态取色（v1.1.2/1.1.3 只设主题属性，压不住）；
+   ③ 前端把 setSystemBars 参数改回 #ffffffff（同时把 WebView 背景刷白），
+      并让弹层最底边不再出现黑色，取色区纯白。
+   仍保留多时机刷新，直接读 window.PnlAndroid 避免 TDZ；浏览器无桥自动跳过。 */
+function forceWhiteBars(){
+  try{
+    const b = window.PnlAndroid;
+    window.__barsAvailable = !!(b && typeof b.setSystemBars === 'function');
+    if(window.__barsAvailable){
+      b.setSystemBars(isDark() ? '#ff0d1117' : '#fff4f6fa', !isDark());  /* 不透明明确色：亮=纯白+深图标 / 暗=纯黑+浅图标 */
+      window.__barsCalls = (window.__barsCalls || 0) + 1;
+    }
+  }catch(e){}
+}
+function forceWhiteBarsSoon(){
+  forceWhiteBars();
+  [80, 260, 600].forEach(ms => setTimeout(forceWhiteBars, ms));
+}
+
+/* ---- v1.1.6：「明暗」白天 / 黑夜（v1.1.8 归一为纯白/纯黑）----
+   键独立于 DB 与坚果云配置，dataForSync() 不会带上它，备份文件也不含主题偏好。
+   系统栏用 setSystemBars 给「不透明明确色」：亮=#ffffffff+深图标，暗=#ff000000+浅图标，
+   两者都不是透明，配合 v1.1.4 的运行时 setNavigationBarContrastEnforced(false)，
+   不会回落成「按窗口底部内容动态取色」，故手势条修复在两种主题下都成立。 */
+const THEME_KEY = 'amhub_v100_theme';
+const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+function applyTheme(dark, persist){
+  const root = document.documentElement;
+  if(dark) root.setAttribute('data-theme','dark'); else root.removeAttribute('data-theme');
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m =>
+    m.setAttribute('content', dark ? '#0d1117' : '#f4f6fa'));
+  const btn = $('btnTheme');
+  if(btn){
+    btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    btn.title = dark ? '当前：黑夜，点击切到白天' : '当前：白天，点击切到黑夜';
+  }
+  if(persist !== false){ try{ localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); }catch(e){} }
+  forceWhiteBars();
+}
+function toggleTheme(){ applyTheme(!isDark()); }
+
+let NS = Object.assign({}, NS_DEFAULT, readJSON(NS_KEY, {}) || {});
+let nsSeq = 0;
+const nsWait = new Map();
+function persistNS(){ try { localStorage.setItem(NS_KEY, JSON.stringify(NS)); } catch(e){} }
+window.__pnlNsDone = function(id, status, body){
+  const cb = nsWait.get(id); if(!cb) return;
+  nsWait.delete(id);
+  let d = {}; try { d = JSON.parse(body || '{}') || {}; } catch(e){ d = {}; }
+  cb({ok:status >= 200 && status < 300, status:status, data:d});
+};
+/* 两条通道的 path 语义不同：原生桥要「目录/backup.json」，桌面 /ns 只要目录名 */
+function nsBridgePath(dir){
+  let d = String(dir || NS_DIR).replace(/^\/+|\/+$/g, '');
+  if(/\.json$/i.test(d)) return d;
+  return (d || NS_DIR) + '/' + NS_FILE;
+}
+function nsDirPath(dir){
+  let d = String(dir || NS_DIR).replace(/^\/+|\/+$/g, '');
+  d = d.replace(/\/backup\.json$/i, '');
+  return d || NS_DIR;
+}
+function nsNative(method, probe, body, pathOverride){
+  return new Promise((resolve, reject) => {
+    const id = 'ns' + (++nsSeq) + '_' + Date.now().toString(36);
+    const t = setTimeout(() => { nsWait.delete(id); reject(new Error('请求超时')); }, 30000);
+    nsWait.set(id, v => { clearTimeout(t); resolve(v); });
+    try{
+      /* dex 里 Bridge.nsRequest 恰好 8 个 String，少一个会 Method not found */
+      PNL_NATIVE.nsRequest(id, method, NS.user || '', NS.pass || '',
+        nsBridgePath(pathOverride || NS.path || NS_DIR), probe ? '1' : '',
+        body == null ? '' : String(body), probe ? '' : String(NS.keep || 30));
+    }catch(e){ clearTimeout(t); nsWait.delete(id); reject(e); }
+  });
+}
+async function nsCall(method, probe, body, pathOverride){
+  if(PNL_NATIVE) return nsNative(method, probe, body, pathOverride);
+  const hdr = {'X-NS-User':NS.user || '', 'X-NS-Pass':NS.pass || '',
+               'X-NS-Path':encodeURIComponent(nsDirPath(pathOverride || NS.path || NS_DIR))};
+  if(probe) hdr['X-NS-Probe'] = '1';
+  if(method === 'LIST') hdr['X-NS-List'] = '1';
+  if(!probe) hdr['X-NS-Keep'] = String(NS.keep || 30);
+  const opt = {method:(method === 'LIST' ? 'GET' : method), headers:hdr};
+  if(body != null){ hdr['Content-Type'] = 'application/json'; opt.body = body; }
+  const r = await fetch('/ns', opt);
+  let d = {}; try { d = await r.json(); } catch(e){ d = {}; }
+  return {ok:r.ok, status:r.status, data:d || {}};
+}
+function nsErr(e){
+  return PNL_NATIVE ? ('备份请求失败：' + e.message)
+                    : ('本页需由应用提供云备份中转，浏览器直接打开时请用「导出/导入备份」（' + e.message + '）');
+}
+function nsStatus(kind, text){
+  NS.status = text;
+  persistNS();
+  const e = $('nsStatus');
+  if(e){ e.textContent = text; e.className = 'ns-status' + (kind ? ' ' + kind : ''); }
+}
+function nsSaveCfg(){
+  NS.user = $('nsUser').value.trim();
+  NS.pass = $('nsPass').value;
+  NS.path = $('nsPath').value.trim() || NS_DIR;
+  NS.keep = Math.max(1, parseInt($('nsKeep').value, 10) || 30);
+  persistNS();
+  nsStatus('', '配置已保存到本机，凭据不会写进备份文件');
+}
+function nsNeedCfg(){
+  if(NS.user && NS.pass) return false;
+  nsStatus('err', '请先填写坚果云账号与「第三方应用密码」并保存配置');
+  return true;
+}
+async function nsTest(){
+  if(nsNeedCfg()) return;
+  nsStatus('load', '正在测试连接…');
+  try{
+    const r = await nsCall('GET', true, null);
+    if(!r.ok){ nsStatus('err', '连接失败：' + (r.data.error || ('HTTP ' + r.status))); return; }
+    nsStatus('ok', '连接成功 · 保存路径 ' + nsDirPath(NS.path) + '/' + NS_FILE);
+  }catch(e){ nsStatus('err', nsErr(e)); }
+}
+/* v1.1.5：把云端上传 / 下载抽成与 UI 无关的核心，返回 {ok, code, msg}。
+   设置页「立即备份 / 从云端恢复」与顶部「备份 / 恢复」共用同一份网络逻辑，
+   避免以后只改一处造成两条入口行为分叉。code: nocfg=未配置 / empty=云端无备份 / net=请求失败。
+   网络契约（8 参原生桥、/ns 头、path 归一化、404/409 旧目录回退）逐字沿用 v1.1.4。 */
+async function cloudBackupCore(){
+  if(!NS.user || !NS.pass) return {ok:false, code:'nocfg', msg:'请先填写坚果云账号与「第三方应用密码」并保存配置'};
+  try{
+    const r = await nsCall('PUT', false, JSON.stringify(dataForSync()));
+    if(!r.ok) return {ok:false, code:'net', msg:'上传失败：' + (r.data.error || ('HTTP ' + r.status))};
+    NS.last = Date.now(); persistNS();
+    return {ok:true, msg:'已备份到坚果云 ' + nsDirPath(NS.path) + '/' + NS_FILE};
+  }catch(e){ return {ok:false, code:'net', msg:nsErr(e)}; }
+}
+async function cloudRestoreCore(){
+  if(!NS.user || !NS.pass) return {ok:false, code:'nocfg', msg:'请先填写坚果云账号与「第三方应用密码」并保存配置'};
+  try{
+    /* 真实坚果云对不存在的父目录返回 409；原生桥只认 404 且没有旧目录回退，前端兜住 */
+    let r = await nsCall('GET', false, null), usedDir = NS.path || NS_DIR;
+    if(PNL_NATIVE && (r.status === 404 || r.status === 409) && usedDir !== NS_DIR_OLD){
+      usedDir = NS_DIR_OLD;
+      r = await nsCall('GET', false, null, NS_DIR_OLD);
+    }
+    if(r.status === 404 || r.status === 409) return {ok:false, code:'empty', msg:'云端暂无备份（' + (NS.path || NS_DIR) + '）'};
+    if(!r.ok) return {ok:false, code:'net', msg:'下载失败：' + (r.data.error || ('HTTP ' + r.status))};
+    const o = applyDB(r.data);
+    return {ok:true, msg:'已从坚果云 ' + usedDir + ' 恢复 ' + o.tx.length + ' 笔流水 / ' + o.accounts.length + ' 个账户'};
+  }catch(e){ return {ok:false, code:'net', msg:'恢复失败：' + e.message}; }
+}
+/* 设置页入口：详情写进设置页状态区（DOM 未渲染时 nsStatus 内部有空值保护） */
+async function nsUpload(){
+  if(nsNeedCfg()) return;
+  nsStatus('load', '备份中…');
+  const r = await cloudBackupCore();
+  nsStatus(r.ok ? 'ok' : 'err', r.ok ? (r.msg + '\n' + new Date().toLocaleString('zh-CN')) : r.msg);
+}
+async function nsDownload(){
+  if(nsNeedCfg()) return;
+  nsStatus('load', '从云端恢复中…');
+  const r = await cloudRestoreCore();
+  nsStatus(r.ok ? 'ok' : 'err', r.msg);
+}
+
+/* ---- v1.1.6：本地固定备份区 ----
+   v1.1.5 的 exportBackup() 在 APK 内走 PnlAndroid.exportBackup，该桥注册的是
+   ActivityResultContracts.CreateDocument（SAF「选择保存位置」），点一次弹一次框；
+   而壳里的 WebView 没有 setDownloadListener，前端 Blob 下载也落不了地。
+   因此自动备份改为静默写入应用内固定键：不弹窗、覆盖安装/重启都不丢。
+   需要真实 JSON 文件时，设置页「导出备份」仍走原生桥（用户主动触发才弹框）。 */
+const AUTOBAK_KEY = 'amhub_v100_autobackup';
+function localAutoBackup(){
+  try{
+    const name = '资产管理中枢_备份_' + stamp() + '.json';
+    const json = JSON.stringify(dataForSync(), null, 2);
+    localStorage.setItem(AUTOBAK_KEY, JSON.stringify({name:name, at:new Date().toISOString(), json:json}));
+    return name;
+  }catch(e){ return null; }
+}
+function readAutoBackup(){
+  try{
+    const o = JSON.parse(localStorage.getItem(AUTOBAK_KEY) || 'null');
+    return (o && typeof o.json === 'string' && typeof o.name === 'string') ? o : null;
+  }catch(e){ return null; }
+}
+function restoreFromLocal(){
+  const bak = readAutoBackup();
+  if(!bak){ $('importFile').click(); return; }   /* 无自动备份：回退手工选择 JSON 文件 */
+  try{
+    const o = applyDB(JSON.parse(bak.json));
+    toast('已从本地备份恢复 ' + o.tx.length + ' 笔流水 / ' + o.accounts.length + ' 个账户');
+  }catch(e){ toast('本地备份损坏，请选择 JSON 文件'); $('importFile').click(); }
+}
+
+/* ---- v1.1.5 起（v1.1.6 改本地通道）：顶部「备份 / 恢复」双通道入口 ---- */
+/* 备份：本地固定备份区与坚果云都跑，任一失败不阻断另一个。本地同步、云端异步，
+   云端结果回来后统一给一条短提示；完整详情写进 NS.status，进设置页可查。 */
+async function backupAll(){
+  toast('正在备份…');
+  const name = localAutoBackup();
+  const r = await cloudBackupCore();
+  NS.status = '本地 ' + (name ? '已备份到固定备份区 ' + name : '备份失败（存储不可用）') + '\n'
+            + '云端 ' + (r.ok ? r.msg : (r.code === 'nocfg' ? '未配置坚果云，已跳过' : r.msg))
+            + '\n' + new Date().toLocaleString('zh-CN');
+  persistNS();
+  if(!name) toast('本地备份失败');
+  else if(r.ok) toast('本地 + 云端备份完成');
+  else if(r.code === 'nocfg') toast('本地已备份 · 云端未配置');
+  else toast('本地已备份 · 云端未完成');
+}
+/* ---- v1.1.7：紧凑选项弹层 ----
+   原生 select 由 Android 系统绘制，网页 CSS 缩不了；这里只接管「点击」这一步：
+   select 仍是唯一数据容器（显示当前值、.value 读写、change 监听全部不变），
+   选项渲染进网页弹层，选中后写回 value 并派发 change，原有业务逻辑零改动。 */
+function pickerOpen(){ return $('pickerSheet').classList.contains('on'); }
+let PICK_SEL = null;
+function openPicker(sel, title){
+  if(!sel || sel.disabled) return;                    /* 类型联动禁用的账户下拉不可点 */
+  PICK_SEL = sel;
+  $('pickerTitle').textContent = title || '请选择';
+  const cur = sel.value;
+  $('pickerList').innerHTML = [...sel.options].map(o =>
+    '<button type="button" class="picker-row' + (o.value === cur ? ' cur' : '') +
+    '" data-v="' + esc(o.value) + '">' + esc(o.text || '（无）') + '</button>').join('');
+  forceWhiteBarsSoon();
+  $('pickerSheet').classList.add('on');
+  $('pickerMask').classList.add('on');
+  const c = $('pickerList').querySelector('.cur');
+  if(c && c.scrollIntoView) c.scrollIntoView({block:'nearest'});
+}
+function closePicker(){
+  if(!pickerOpen()) return;
+  forceWhiteBarsSoon();
+  $('pickerSheet').classList.remove('on');
+  $('pickerMask').classList.remove('on');
+  PICK_SEL = null;
+}
+/* 恢复：先弹选择框，用户明确选「本地备份」或「云端备份」后才执行，避免误覆盖 */
+const restoreOpen = () => $('restoreSheet').classList.contains('on');
+function openRestorePicker(){
+  closeSettings(); closeSheet(); closeAccount();
+  forceWhiteBarsSoon();
+  $('restoreSheet').classList.add('on');
+  $('restoreMask').classList.add('on');
+}
+function closeRestorePicker(){
+  forceWhiteBarsSoon();
+  $('restoreSheet').classList.remove('on');
+  $('restoreMask').classList.remove('on');
+}
+async function restoreFromCloud(){
+  toast('正在从云端恢复…');
+  const r = await cloudRestoreCore();
+  NS.status = r.msg + '\n' + new Date().toLocaleString('zh-CN');
+  persistNS();
+  if(r.ok) toast('云端恢复完成');
+  else if(r.code === 'nocfg') toast('请先配置坚果云');
+  else if(r.code === 'empty') toast('云端暂无备份');
+  else toast('云端恢复失败，详情见设置');
+}
+
+/* ---- 设置页：分类与标签 + 数据 + 坚果云 ---- */
+const SET_SECTIONS = [
+  {key:'categories', label:'分类', types:['expense']},
+  {key:'tags',       label:'标签', types:['expense','income','reimburse']}
+];
+const settingsOpen = () => $('settings').classList.contains('on');
+function renderSettings(){
+  let html = '<p class="set-tip">支出可选分类与标签；收入、报销只有标签；还款、转账不设分类与标签。修改即时保存。</p>';
+  for(const sec of SET_SECTIONS){
+    html += '<div class="set-sec"><h3>' + sec.label + '</h3>';
+    for(const tp of sec.types){
+      const list = DB[sec.key][tp] || (DB[sec.key][tp] = []);
+      html += '<div class="set-group" data-key="' + sec.key + '" data-type="' + tp + '">'
+        + '<span class="set-glab">' + TYPE_NAME[tp] + '（' + list.length + '）</span>'
+        + '<div class="set-items">'
+        + (list.length
+            ? list.map((x,i) => '<span class="set-item"><span>' + esc(x) + '</span><button class="set-del" data-del="' + i + '" aria-label="删除">×</button></span>').join('')
+            : '<span class="set-empty">暂无</span>')
+        + '</div>'
+        + '<div class="set-add"><input type="text" data-new placeholder="新增' + sec.label + '" aria-label="新增' + sec.label + '"><button data-add>添加</button></div>'
+        + '</div>';
+    }
+    html += '</div>';
+  }
+  html += '<div class="set-sec"><h3>数据</h3><div class="set-btns">'
+    + '<button class="bx" data-io="export">导出备份</button>'
+    + '<button class="bx" data-io="import">导入备份</button>'
+    + '<button class="bx' + (clearArmed ? ' on' : '') + '" data-io="clear">清空数据</button>'
+    + '</div><p class="set-tip">导出为 JSON 文件；导入会覆盖本机全部账单与资产。备份文件不含坚果云凭据。顶部「备份」静默写入应用内固定备份区并同步坚果云，不弹保存位置框；需要 JSON 文件请用「导出备份」。</p></div>';
+  html += '<div class="set-sec"><h3>坚果云备份</h3><div class="ns-grid">'
+    + '<label class="fitem"><span class="flab">账号（邮箱）</span><input id="nsUser" type="text" autocomplete="off"></label>'
+    + '<label class="fitem"><span class="flab">第三方应用密码</span><input id="nsPass" type="password" autocomplete="off"></label>'
+    + '<label class="fitem"><span class="flab">远程目录</span><input id="nsPath" type="text"></label>'
+    + '<label class="fitem"><span class="flab">保留份数</span><input id="nsKeep" type="number" min="1" max="99"></label>'
+    + '</div><div class="set-btns">'
+    + '<button class="bx" data-ns="save">保存配置</button>'
+    + '<button class="bx" data-ns="test">测试连接</button>'
+    + '<button class="bx" data-ns="up">立即备份</button>'
+    + '<button class="bx" data-ns="down">从云端恢复</button>'
+    + '</div><div class="ns-status" id="nsStatus"></div>'
+    + '<p class="set-tip">需使用坚果云「第三方应用密码」，登录密码会鉴权失败。浏览器直接打开时请用上方的导出 / 导入。</p></div>';
+  $('settingsBody').innerHTML = html;
+  $('nsUser').value = NS.user || '';
+  $('nsPass').value = NS.pass || '';
+  $('nsPath').value = NS.path || NS_DIR;
+  $('nsKeep').value = String(NS.keep || 30);
+  $('nsStatus').textContent = NS.status || '';
+}
+function openSettings(){
+  closeRestorePicker();
+  forceWhiteBarsSoon();
+  closeSheet(); closeAccount();
+  clearArmed = false;
+  renderSettings();
+  $('settings').classList.add('on');
+  $('settingsMask').classList.add('on');
+}
+function closeSettings(){
+  forceWhiteBarsSoon();
+  $('settings').classList.remove('on');
+  $('settingsMask').classList.remove('on');
+}
+function refreshAddOptions(){
+  fillSelect('fCategory', DB.categories[S_ADD.type] || []);
+  fillSelect('fTag', DB.tags[S_ADD.type] || []);
+}
+
+/* ---- 事件绑定 ---- */
+/* v1.1.7：5 个原生 select 的点击统一接到紧凑弹层；选中后写回并派发 change */
+document.addEventListener('click', e => {
+  const hit = e.target.closest('.sel-hit');
+  if(hit){ openPicker($(hit.dataset.sel), hit.dataset.title); return; }
+  const row = e.target.closest('.picker-row');
+  if(row && PICK_SEL){
+    const sel = PICK_SEL, v = row.dataset.v;
+    closePicker();
+    sel.value = v;
+    sel.dispatchEvent(new Event('change', {bubbles:true}));
+  }
+});
+$('pickerClose').addEventListener('click', closePicker);
+$('pickerMask').addEventListener('click', closePicker);
+$('prevDay').addEventListener('click', () => setDate(shiftDate(S.date, -1)));
+$('nextDay').addEventListener('click', () => setDate(shiftDate(S.date, 1)));
+$('prevMon').addEventListener('click', () => setMonth(shiftMonth(S.month, -1)));
+$('nextMon').addEventListener('click', () => setMonth(shiftMonth(S.month, 1)));
+$('dateLabel').addEventListener('click', () => {
+  const p = $('datePicker');
+  try { p.showPicker(); }
+  catch(e) { p.focus(); p.click(); }
+});
+$('datePicker').addEventListener('change', e => { if(e.target.value) setDate(e.target.value); });
+document.addEventListener('keydown', e => {
+  if(pickerOpen()){ if(e.key === 'Escape') closePicker(); return; }
+  if(restoreOpen()){ if(e.key === 'Escape') closeRestorePicker(); return; }
+  if(acctOpen()){ if(e.key === 'Escape') closeAccount(); return; }
+  if(settingsOpen()){
+    if(e.key === 'Escape') closeSettings();
+    return;
+  }
+  if(sheetOpen()){
+    if(e.key === 'Escape'){ closeSheet(); return; }
+    /* v1.3.2：Linux / 桌面端物理键盘直接敲金额（手机端无物理键盘，行为零变化） */
+    handleSheetKey(e);
+    return;
+  }
+  if(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if(e.key === 'ArrowLeft')  setDate(shiftDate(S.date, -1));
+  if(e.key === 'ArrowRight') setDate(shiftDate(S.date, 1));
+});
+/* v1.3.7：dock 第一项「总览」—— 开屏页，点了回到总览（日历与日期条隐藏，不涉及日期）
+   v1.4.0：总览只有一页，点「总览」就是重渲这一页，没有子页状态需要复位。 */
+$('tabOv').addEventListener('click', () => { if(Date.now() < HL_SUPPRESS) return; S.tab = 'overview'; renderFlow(); });
+$('tabBill').addEventListener('click', () => { if(Date.now() < HL_SUPPRESS) return; S.tab = 'bill'; renderFlow(); });
+/* v1.2.8：长按「资产」＝清除全部高亮；长按后紧跟的那次 click 不再切页 */
+$('tabAsset').addEventListener('click', () => { if(Date.now() < HL_SUPPRESS) return; S.tab = 'asset'; renderFlow(); });
+$('btnAdd').addEventListener('click', openSheet);
+/* 9. v1.1.6：顶部「备份」固定备份区 + 坚果云双写（零弹窗）；「恢复」先弹来源选择框 */
+$('btnTheme').addEventListener('click', toggleTheme);
+$('btnBackup').addEventListener('click', backupAll);
+$('btnRestore').addEventListener('click', openRestorePicker);
+/* v1.4.3：顶栏第六格 —— 三页都可用，与资产页原来的「+ 新增账户」同一入口 */
+$('btnAddAccount').addEventListener('click', () => openAccount(null));
+$('restoreClose').addEventListener('click', closeRestorePicker);
+$('restoreMask').addEventListener('click', closeRestorePicker);
+$('restoreBtns').addEventListener('click', e => {
+  const b = e.target.closest('[data-restore]');
+  if(!b) return;
+  closeRestorePicker();
+  if(b.dataset.restore === 'local') restoreFromLocal();
+  else restoreFromCloud();
+});
+$('importFile').addEventListener('change', e => {
+  importBackup(e.target.files && e.target.files[0]);
+  e.target.value = '';
+});
+/* ---------- v1.2.8：资产页两类账户「长按高亮」----------
+   v1.2.7 的「长按拖拽排序」按用户要求整体移除，长按改为对账标记：
+     · 长按账户行 450ms → 该账户高亮；再长按一次取消（白天 / 黑夜都用中灰 #999）；
+     · 长按底部「资产」按钮 → 一次性清除全部高亮；
+     · 标记写进数据 DB.settings.acctHl（账户 id 数组，沿用既有约定 v1.1.14 的键名），
+       跟着本地备份与坚果云备份一起走 —— 换设备 / 恢复备份后原样保留；
+     · 只影响显示：余额、合计、汇总、导出文件都不因高亮发生任何数值变化；
+     · 轻点（未满 450ms）仍是旧行为：打开「修改账户」；长按后紧跟的那次 click 被抑制。 */
+const HL_HOLD_MS = 450;
+const HL_TOL = 8;
+const HL = {timer:null, x:0, y:0};
+let HL_SUPPRESS = 0;
+
+function hlIds(){
+  if(!DB.settings || typeof DB.settings !== 'object') DB.settings = {};
+  if(!Array.isArray(DB.settings.acctHl)) DB.settings.acctHl = [];
+  return DB.settings.acctHl;
+}
+const isHl = id => hlIds().indexOf(id) >= 0;
+function hlSaved(){ persistDB(); renderFlow(); }
+function toggleHl(id){
+  if(!id) return;
+  const arr = hlIds();
+  const i = arr.indexOf(id);
+  if(i >= 0) arr.splice(i, 1); else arr.push(id);
+  hlSaved();
+  toast(i >= 0 ? '已取消这个账户的高亮' : '已高亮 ' + arr.length + ' 个账户');
+}
+function clearHl(){
+  const arr = hlIds();
+  if(!arr.length){ toast('当前没有高亮的账户'); return; }
+  const cnt = arr.length;
+  arr.length = 0;
+  hlSaved();
+  toast('已清除 ' + cnt + ' 个账户的高亮');
+}
+function hlReset(){ if(HL.timer){ clearTimeout(HL.timer); HL.timer = null; } }
+/* 长按计时：抬起、或计时内移动超过 8px（当滑动处理）都取消，轻点路径零变化 */
+function hlArm(e, fire){
+  if(e.button) return;                       /* 只认左键 / 触摸 */
+  hlReset();
+  HL.x = e.clientX; HL.y = e.clientY;
+  HL.timer = setTimeout(() => { HL.timer = null; HL_SUPPRESS = Date.now() + 500; fire(); }, HL_HOLD_MS);
+}
+$('flow').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.asset-item[data-acct]');
+  if(!el) return;
+  hlArm(e, () => toggleHl(el.dataset.acct));
+});
+$('tabAsset').addEventListener('pointerdown', e => hlArm(e, clearHl));
+document.addEventListener('pointermove', e => {
+  if(!HL.timer) return;
+  if(Math.abs(e.clientX - HL.x) > HL_TOL || Math.abs(e.clientY - HL.y) > HL_TOL) hlReset();
+}, {passive:true});
+document.addEventListener('pointerup', hlReset);
+document.addEventListener('pointercancel', hlReset);
+
+/* 账单页流水条点击修改 / 删除；资产页账户行点击修改
+   （v1.4.3 起「+ 新增账户」在顶栏，不再走这里的委托） */
+$('flow').addEventListener('click', e => {
+  if(Date.now() < HL_SUPPRESS){ e.preventDefault(); e.stopPropagation(); return; }
+  /* v1.4.0：总览页没有任何可点元素 —— 三块本年网格纯展示，
+     故这里不再有入口卡与返回键两条分支（v1.3.9 的它们已整块删除）。 */
+  const acc = e.target.closest('[data-acct]');
+  if(acc){ openAccount(acc.dataset.acct); return; }
+  const row = e.target.closest('.flow-row[data-id]');
+  if(row) openEdit(row.dataset.id);
+});
+$('delYes').addEventListener('click', deleteTx);
+$('delNo').addEventListener('click', hideDelConfirm);
+/* 账户弹层 */
+$('acctClose').addEventListener('click', closeAccount);
+$('acctMask').addEventListener('click', closeAccount);
+$('aCancel').addEventListener('click', closeAccount);
+$('aKind').addEventListener('change', syncAcctLimit);
+$('aSave').addEventListener('click', saveAccount);
+$('aDel').addEventListener('click', deleteAccount);
+/* 设置页：分类标签增删改 + 数据 + 坚果云 */
+$('btnSettings').addEventListener('click', openSettings);
+$('settingsClose').addEventListener('click', closeSettings);
+$('settingsMask').addEventListener('click', closeSettings);
+$('settingsBody').addEventListener('click', e => {
+  const io = e.target.closest('[data-io]');
+  if(io){
+    const k = io.dataset.io;
+    if(k === 'export') exportBackup();
+    else if(k === 'import') $('importFile').click();
+    else if(k === 'clear'){ clearAllData(); renderSettings(); }
+    return;
+  }
+  const ns = e.target.closest('[data-ns]');
+  if(ns){
+    const k = ns.dataset.ns;
+    if(k === 'save') nsSaveCfg();
+    else if(k === 'test') nsTest();
+    else if(k === 'up') nsUpload();
+    else if(k === 'down') nsDownload();
+    return;
+  }
+  const grp = e.target.closest('.set-group');
+  if(!grp) return;
+  const key = grp.dataset.key, tp = grp.dataset.type;
+  const list = DB[key][tp] || (DB[key][tp] = []);
+  const del = e.target.closest('[data-del]');
+  const add = e.target.closest('[data-add]');
+  if(del) list.splice(Number(del.dataset.del), 1);
+  else if(add){
+    const inp = grp.querySelector('[data-new]');
+    const v = inp.value.trim();
+    if(!v){ toast('请先输入名称'); return; }
+    if(list.includes(v)){ toast('「' + v + '」已存在'); return; }
+    list.push(v);
+  }
+  else return;
+  persistDB();
+  renderSettings();
+  refreshAddOptions();
+});
+$('settingsBody').addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const inp = e.target.closest('[data-new]');
+  if(!inp) return;
+  e.preventDefault();
+  const btn = inp.closest('.set-group').querySelector('[data-add]');
+  if(btn) btn.click();
+});
+$('fDateBtn').addEventListener('click', () => {
+  const d = $('fDate');
+  try { d.showPicker(); } catch(e) { d.focus(); d.click(); }
+});
+$('fDate').addEventListener('change', e => {
+  if(e.target.value) $('fDateBtn').textContent = dateLabel(e.target.value);
+});
+$('fNoCount').addEventListener('change', updateNoCountBox);
+$('sheetClose').addEventListener('click', closeSheet);
+$('sheetMask').addEventListener('click', closeSheet);
+$('typeRow').addEventListener('click', e => {
+  const b = e.target.closest('[data-type]');
+  if(b) setAddType(b.dataset.type);
+});
+$('fieldGrid').addEventListener('click', e => {
+  const f = e.target.closest('.keypad-field');
+  if(f) setActiveField(f);
+});
+/* v1.3.2：键盘 Tab / 点击聚焦到哪一格，物理键盘就写进哪一格（桌面端 Tab 切换金额字段） */
+document.querySelectorAll('.keypad-field').forEach(el => {
+  el.addEventListener('focus', () => setActiveField(el));
+});
+$('numpad').addEventListener('click', e => {
+  const b = e.target.closest('[data-key]');
+  if(b) keyInput(b.dataset.key);
+});
+$('opcol').addEventListener('click', e => {
+  const op = e.target.closest('[data-op]');
+  if(op){ keyInput(op.dataset.op); return; }
+  if(e.target.closest('#btnAgain')){
+    if(S_ADD.mode === 'edit') showDelConfirm();
+    else saveTx(true);
+  }
+  else if(e.target.closest('#btnSave')){
+    if(S_ADD.mode === 'edit') saveEdit();
+    else saveTx(false);
+  }
+});
+
+/* 启动句放在所有 const / 函数声明之后，避免 TDZ 造成整块脚本中断 */
+/* v1.1.6：同步 meta / 按钮态 / 系统栏颜色；默认亮色分支与 v1.1.5 完全一致 */
+applyTheme(isDark(), false);
+[120, 400, 1000].forEach(ms => setTimeout(forceWhiteBars, ms));
+['pageshow', 'focus', 'resize'].forEach(ev => window.addEventListener(ev, forceWhiteBars));
+document.addEventListener('visibilitychange', () => { if(!document.hidden) forceWhiteBars(); });
+if(window.visualViewport) window.visualViewport.addEventListener('resize', forceWhiteBars);
+/* v1.2.8：竖屏资产页的滚动兜底在视口变化后要重新判定（fitAssetScroll 已在 renderFlow 段注册） */
+renderAll();
+fitFrame();
+</script>
+</body>
+</html>
