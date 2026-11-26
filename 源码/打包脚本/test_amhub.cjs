@@ -5,7 +5,7 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 
-const HTML = 'file://' + path.resolve(__dirname, '..', '资产管理中枢_浏览器版_v1.0.0.html');
+const HTML = 'file://' + path.resolve(__dirname, '..', '资产管理中枢_浏览器版.html');
 const SHOT = process.env.AMHUB_SHOT_DIR || require('os').tmpdir();
 const FIXTURE_PATH = process.env.AMHUB_FIXTURE || path.join(__dirname, 'ledger_fixture_v110.json');
 const FIXTURE = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
