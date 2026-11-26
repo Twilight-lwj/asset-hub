@@ -24,8 +24,8 @@ if [ -z "${PY:-}" ]; then
     [ -n "${PY:-}" ] || PY="$(command -v python3)"
 fi
 [ -n "${PY:-}" ] || { echo "找不到 python3：请用 PY=/path/to/python3 指定"; exit 1; }
-DIST="${DIST:-$ROOT}"   # 成品与源码同目录，.gitignore 已排除 *.AppImage
-PAGE="$SRC/资产管理中枢_浏览器版_v${VER}.html"
+DIST="${DIST:-$ROOT/发布版}"   # 成品统一落在 发布版/，.gitignore 已排除
+PAGE="$SRC/资产管理中枢_浏览器版.html"
 
 : "${HOME:?HOME 未设置，无法定位用户目录}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -95,12 +95,12 @@ mksquashfs "$APPDIR" "$AIT/app.squashfs" -root-owned -noappend -mkfs-time 0 \
   -comp zstd -Xcompression-level 19 -b 262144 >/dev/null
 cat "$AIT/runtime" "$AIT/app.squashfs" > "$AIT/out.AppImage"
 # 先写临时名再 rename：挂着 fuse 时直接写会 Text file busy
-mv -f "$AIT/out.AppImage" "$DIST/${NAME}_Linux免安装包_v${VER}.AppImage"
-chmod +x "$DIST/${NAME}_Linux免安装包_v${VER}.AppImage"
-echo "      -> $DIST/${NAME}_Linux免安装包_v${VER}.AppImage  $(du -h "$DIST/${NAME}_Linux免安装包_v${VER}.AppImage" | cut -f1)"
+mv -f "$AIT/out.AppImage" "$DIST/${NAME}-发布版${VER}.AppImage"
+chmod +x "$DIST/${NAME}-发布版${VER}.AppImage"
+echo "      -> $DIST/${NAME}-发布版${VER}.AppImage  $(du -h "$DIST/${NAME}-发布版${VER}.AppImage" | cut -f1)"
 
 echo "[3/3] 校验 ..."
 "$WORK/$APP" --version
-APPIMAGE_EXTRACT_AND_RUN=1 "$DIST/${NAME}_Linux免安装包_v${VER}.AppImage" --version
+APPIMAGE_EXTRACT_AND_RUN=1 "$DIST/${NAME}-发布版${VER}.AppImage" --version
 ls -lh "$DIST" | grep -E "AppImage" | sed 's/^/  /'
 echo "完成。"

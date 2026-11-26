@@ -63,7 +63,7 @@ def _resource(name):
     if os.path.exists(p):
         return p
     if name == "index.html":
-        cand = os.path.abspath(os.path.join(here, "..", "资产管理中枢_浏览器版_v%s.html" % VERSION))
+        cand = os.path.abspath(os.path.join(here, "..", "资产管理中枢_浏览器版.html"))
         if os.path.exists(cand):
             return cand
     return p
