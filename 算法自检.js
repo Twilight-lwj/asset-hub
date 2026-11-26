@@ -15,7 +15,7 @@ const crypto = require('crypto');
 function findRoot(){
   let d = __dirname;
   for (let i = 0; i < 4; i++) {
-    if (fs.existsSync(path.join(d, '发布版', '资产管理中枢-发布版1.0.0.apk'))
+    if (fs.existsSync(path.join(d, '发行版', '资产管理中枢-发行版1.0.0.apk'))
         || fs.existsSync(path.join(d, '源码', '资产管理中枢_浏览器版.html'))) return d;
     d = path.dirname(d);
   }
@@ -23,7 +23,7 @@ function findRoot(){
 }
 const ROOT = findRoot();
 const PAGE = path.join(ROOT, '源码', '资产管理中枢_浏览器版.html');
-const APK = path.join(ROOT, '发布版', '资产管理中枢-发布版1.0.0.apk');
+const APK = path.join(ROOT, '发行版', '资产管理中枢-发行版1.0.0.apk');
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
   if (cond) { pass++; console.log('[PASS] ' + name); }

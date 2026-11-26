@@ -32,9 +32,9 @@ from patch_native import patch_dex, patch_arsc, verify as verify_native  # noqa:
 
 TOOLS = os.environ.get('ANDROID_TOOLS', '')
 if not TOOLS:
-    for _cand in (os.path.expanduser('~/.workbuddy/binaries/android-tools'),
-                  os.path.expanduser('~/android-tools'),
-                  '/opt/android-tools'):
+    for _cand in (os.path.expanduser('~/android-tools'),
+                  '/opt/android-tools',
+                  '/usr/local/android-tools'):
         if os.path.isdir(_cand):
             TOOLS = _cand
             break
@@ -68,8 +68,8 @@ BASE_CANDIDATES = [os.path.join(ROOT, 'base.apk'),
                    os.path.join(ROOT, '源码', '打包脚本', 'base.apk')]
 BASE = next((p for p in BASE_CANDIDATES if os.path.exists(p)), BASE_CANDIDATES[0])
 PAGE = os.path.join(ROOT, '源码', LABEL + '_浏览器版.html')
-DIST = os.environ.get('DIST', os.path.join(ROOT, '发布版'))   # 成品统一落在 发布版/，.gitignore 已排除
-OUT = os.path.join(DIST, LABEL + '-发布版' + VERSION_NAME + '.apk')
+DIST = os.environ.get('DIST', os.path.join(ROOT, '发行版'))   # 成品统一落在 发行版/，.gitignore 已排除
+OUT = os.path.join(DIST, LABEL + '-发行版' + VERSION_NAME + '.apk')
 DROP = ('.SF', '.RSA', '.DSA', '.MF', '.EC')
 # v1.2.5 沿用：adaptive-icon 的 5 张前景 PNG（黑底白 ¥；背景色在 arsc 里已是纯黑，不改）
 ICON_DIR = os.path.join(ROOT, '源码', '图标')

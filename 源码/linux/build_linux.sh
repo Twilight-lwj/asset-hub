@@ -15,16 +15,12 @@ ROOT="$(cd "$SRC/.." && pwd)"
 VER=1.0.0
 APP=amhub
 NAME=资产管理中枢
-# 解释器：优先用环境变量 PY；否则探测常见托管环境，最后落到 PATH 里的 python3
+# 解释器：环境变量 PY 优先，否则取 PATH 里的 python3（需已装 PyInstaller）
 if [ -z "${PY:-}" ]; then
-    for _c in "${HOME}/.workbuddy/binaries/python/envs/default/bin/python" \
-              "${HOME}/.local/share/workbuddy/binaries/python/envs/default/bin/python"; do
-        if [ -x "$_c" ]; then PY="$_c"; break; fi
-    done
-    [ -n "${PY:-}" ] || PY="$(command -v python3)"
+    PY="$(command -v python3 || true)"
 fi
 [ -n "${PY:-}" ] || { echo "找不到 python3：请用 PY=/path/to/python3 指定"; exit 1; }
-DIST="${DIST:-$ROOT/发布版}"   # 成品统一落在 发布版/，.gitignore 已排除
+DIST="${DIST:-$ROOT/发行版}"   # 成品统一落在 发行版/，.gitignore 已排除
 PAGE="$SRC/资产管理中枢_浏览器版.html"
 
 : "${HOME:?HOME 未设置，无法定位用户目录}"
@@ -95,12 +91,12 @@ mksquashfs "$APPDIR" "$AIT/app.squashfs" -root-owned -noappend -mkfs-time 0 \
   -comp zstd -Xcompression-level 19 -b 262144 >/dev/null
 cat "$AIT/runtime" "$AIT/app.squashfs" > "$AIT/out.AppImage"
 # 先写临时名再 rename：挂着 fuse 时直接写会 Text file busy
-mv -f "$AIT/out.AppImage" "$DIST/${NAME}-发布版${VER}.AppImage"
-chmod +x "$DIST/${NAME}-发布版${VER}.AppImage"
-echo "      -> $DIST/${NAME}-发布版${VER}.AppImage  $(du -h "$DIST/${NAME}-发布版${VER}.AppImage" | cut -f1)"
+mv -f "$AIT/out.AppImage" "$DIST/${NAME}-发行版${VER}.AppImage"
+chmod +x "$DIST/${NAME}-发行版${VER}.AppImage"
+echo "      -> $DIST/${NAME}-发行版${VER}.AppImage  $(du -h "$DIST/${NAME}-发行版${VER}.AppImage" | cut -f1)"
 
 echo "[3/3] 校验 ..."
 "$WORK/$APP" --version
-APPIMAGE_EXTRACT_AND_RUN=1 "$DIST/${NAME}-发布版${VER}.AppImage" --version
+APPIMAGE_EXTRACT_AND_RUN=1 "$DIST/${NAME}-发行版${VER}.AppImage" --version
 ls -lh "$DIST" | grep -E "AppImage" | sed 's/^/  /'
 echo "完成。"
